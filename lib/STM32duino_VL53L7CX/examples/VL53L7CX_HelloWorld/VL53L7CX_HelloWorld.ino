@@ -55,12 +55,17 @@
 #include <Wire.h>
 #include <vl53l7cx_class.h>
 
-#define DEV_I2C Wire
+
+#ifdef ARDUINO_SAM_DUE
+  #define DEV_I2C Wire1
+#else
+  #define DEV_I2C Wire
+#endif
 #define SerialPort Serial
 
-#define LPN_PIN GPIO_NUM_33
-#define I2C_RST_PIN GPIO_NUM_35
-#define PWREN_PIN GPIO_NUM_32
+#define LPN_PIN A3
+#define I2C_RST_PIN A1
+#define PWREN_PIN A5
 
 void print_result(VL53L7CX_ResultsData *Result);
 void clear_screen(void);
@@ -87,7 +92,7 @@ void setup()
   }
 
   // Initialize serial for output.
-  SerialPort.begin(250000);
+  SerialPort.begin(460800);
 
   // Initialize I2C bus.
   DEV_I2C.begin();

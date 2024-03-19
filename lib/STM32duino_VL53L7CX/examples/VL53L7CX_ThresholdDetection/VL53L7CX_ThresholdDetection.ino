@@ -1,10 +1,10 @@
- /**
+/**
  ******************************************************************************
- * @file    VL53L7CX_HelloWorld.ino
+ * @file    VL53L7CX_ThresholdDetection.ino
  * @author  STMicroelectronics
  * @version V1.0.0
  * @date    16 January 2023
- * @brief   Arduino test application for STMicroelectronics VL53L7CX
+ * @brief   Arduino test application for the STMicrolectronics VL53L7CX
  *          proximity sensor satellite based on FlightSense.
  *          This application makes use of C++ classes obtained from the C
  *          components' drivers.
@@ -55,29 +55,37 @@
 #include <Wire.h>
 #include <vl53l7cx_class.h>
 
-#define DEV_I2C Wire
+#ifdef ARDUINO_SAM_DUE
+  #define DEV_I2C Wire1
+#else
+  #define DEV_I2C Wire
+#endif
 #define SerialPort Serial
 
-#define LPN_PIN GPIO_NUM_33
-#define I2C_RST_PIN GPIO_NUM_35
-#define PWREN_PIN GPIO_NUM_32
+#define LPN_PIN A3
+#define I2C_RST_PIN A1
+#define PWREN_PIN A5
+#define INT_PIN A2 
 
+void measure(void);
 void print_result(VL53L7CX_ResultsData *Result);
-void clear_screen(void);
-void handle_cmd(uint8_t cmd);
-void display_commands_banner(void);
 
-// Components.
+// Component.
 VL53L7CX sensor_vl53l7cx_top(&DEV_I2C, LPN_PIN, I2C_RST_PIN);
 
 bool EnableAmbient = false;
 bool EnableSignal = false;
 uint8_t res = VL53L7CX_RESOLUTION_4X4;
 char report[256];
+volatile int interruptCount = 0;
+uint8_t i;
 
 /* Setup ---------------------------------------------------------------------*/
+
 void setup()
 {
+
+  VL53L7CX_DetectionThresholds thresholds[VL53L7CX_NB_THRESHOLDS];
 
   // Enable PWREN pin if present
   if (PWREN_PIN >= 0) {
@@ -87,18 +95,48 @@ void setup()
   }
 
   // Initialize serial for output.
-  SerialPort.begin(250000);
+  SerialPort.begin(460800);
 
   // Initialize I2C bus.
   DEV_I2C.begin();
 
+  // Set interrupt pin
+  pinMode(INT_PIN, INPUT_PULLUP);
+  attachInterrupt(INT_PIN, measure, FALLING);
+  
   // Configure VL53L7CX component.
   sensor_vl53l7cx_top.begin();
 
   sensor_vl53l7cx_top.init_sensor();
 
-  // Start Measurements
-  sensor_vl53l7cx_top.vl53l7cx_start_ranging();
+  // Disable thresholds detection.
+  sensor_vl53l7cx_top.vl53l7cx_set_detection_thresholds_enable(0U);
+
+  // Set all values to 0.
+  memset(&thresholds, 0, sizeof(thresholds));
+
+  // Configure thresholds on each active zone
+  for (i = 0; i < res; i++)
+  {
+    thresholds[i].zone_num = i;
+    thresholds[i].measurement = VL53L7CX_DISTANCE_MM;
+    thresholds[i].type = VL53L7CX_IN_WINDOW;
+    thresholds[i].mathematic_operation = VL53L7CX_OPERATION_NONE;
+    thresholds[i].param_low_thresh = 200;
+    thresholds[i].param_high_thresh = 600;
+  }
+
+    // Last threshold must be clearly indicated.
+    thresholds[i].zone_num |= VL53L7CX_LAST_THRESHOLD;
+
+    // Send array of thresholds to the sensor.
+    sensor_vl53l7cx_top.vl53l7cx_set_detection_thresholds(thresholds);
+
+    // Enable thresholds detection.
+    sensor_vl53l7cx_top.vl53l7cx_set_detection_thresholds_enable(1U);
+
+    // Start Measurements.
+    sensor_vl53l7cx_top.vl53l7cx_start_ranging();   
 }
 
 void loop()
@@ -106,21 +144,17 @@ void loop()
   VL53L7CX_ResultsData Results;
   uint8_t NewDataReady = 0;
   uint8_t status;
-
+  
   do {
     status = sensor_vl53l7cx_top.vl53l7cx_check_data_ready(&NewDataReady);
   } while (!NewDataReady);
 
-  if ((!status) && (NewDataReady != 0)) {
+  if ((!status) && (NewDataReady != 0)&& interruptCount ) {
+    interruptCount = 0;
     status = sensor_vl53l7cx_top.vl53l7cx_get_ranging_data(&Results);
     print_result(&Results);
   }
 
-  if (Serial.available()>0)
-  {
-    handle_cmd(Serial.read());
-  }
-  delay(1000);
 }
 
 void print_result(VL53L7CX_ResultsData *Result)
@@ -128,11 +162,13 @@ void print_result(VL53L7CX_ResultsData *Result)
   int8_t i, j, k, l;
   uint8_t zones_per_line;
   uint8_t number_of_zones = res;
-
+    
   zones_per_line = (number_of_zones == 16) ? 4 : 8;
 
-  display_commands_banner();
-
+  snprintf(report, sizeof(report),"%c[2H", 27); /* 27 is ESC command */
+  SerialPort.print(report);
+  SerialPort.print("53L7A1 Threshold Detection demo application\n");
+  SerialPort.print("-------------------------------------------\n\n");
   SerialPort.print("Cell Format :\n\n");
   
   for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++)
@@ -161,7 +197,7 @@ void print_result(VL53L7CX_ResultsData *Result)
   
     for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++)
     {
-      // Print distance and status 
+      // Print distance and status.
       for (k = (zones_per_line - 1); k >= 0; k--)
       {
         if (Result->nb_target_detected[j+k]>0)
@@ -181,7 +217,7 @@ void print_result(VL53L7CX_ResultsData *Result)
 
       if (EnableAmbient || EnableSignal )
       {
-        // Print Signal and Ambient 
+        // Print Signal and Ambient.
         for (k = (zones_per_line - 1); k >= 0; k--)
         {
           if (Result->nb_target_detected[j+k]>0)
@@ -222,73 +258,7 @@ void print_result(VL53L7CX_ResultsData *Result)
   SerialPort.print("\n");
 }
 
-void toggle_resolution(void)
+void measure(void)
 {
-  sensor_vl53l7cx_top.vl53l7cx_stop_ranging();
-
-  switch (res)
-  {
-    case VL53L7CX_RESOLUTION_4X4:
-      res = VL53L7CX_RESOLUTION_8X8;
-      break;
-
-    case VL53L7CX_RESOLUTION_8X8:
-      res = VL53L7CX_RESOLUTION_4X4;
-      break;
-
-    default:
-      break;
-  }
-  sensor_vl53l7cx_top.vl53l7cx_set_resolution(res);
-  sensor_vl53l7cx_top.vl53l7cx_start_ranging();
-}
-
-void toggle_signal_and_ambient(void)
-{
-  EnableAmbient = (EnableAmbient) ? false : true;
-  EnableSignal = (EnableSignal) ? false : true;
-}
-
-void clear_screen(void)
-{
-  snprintf(report, sizeof(report),"%c[2J", 27); /* 27 is ESC command */
-  SerialPort.print(report);
-}
-
-void display_commands_banner(void)
-{
-  snprintf(report, sizeof(report),"%c[2H", 27); /* 27 is ESC command */
-  SerialPort.print(report);
-
-  Serial.print("53L7A1 Simple Ranging demo application\n");
-  Serial.print("--------------------------------------\n\n");
-
-  Serial.print("Use the following keys to control application\n");
-  Serial.print(" 'r' : change resolution\n");
-  Serial.print(" 's' : enable signal and ambient\n");
-  Serial.print(" 'c' : clear screen\n");
-  Serial.print("\n");
-}
-
-void handle_cmd(uint8_t cmd)
-{
-  switch (cmd)
-  {
-    case 'r':
-      toggle_resolution();
-      clear_screen();
-      break;
-
-    case 's':
-      toggle_signal_and_ambient();
-      clear_screen();
-      break;
-
-    case 'c':
-      clear_screen();
-      break;
-
-    default:
-      break;
-  }
+  interruptCount = 1;
 }
