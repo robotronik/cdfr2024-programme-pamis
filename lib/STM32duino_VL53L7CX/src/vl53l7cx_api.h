@@ -347,7 +347,7 @@ typedef struct {
 
   /* Measured distance in mm */
 #ifndef VL53L7CX_DISABLE_DISTANCE_MM
-  int16_t distance_mm[(VL53L7CX_RESOLUTION_8X8
+  uint16_t distance_mm[(VL53L7CX_RESOLUTION_8X8
                        *VL53L7CX_NB_TARGET_PER_ZONE)];
 #endif
 

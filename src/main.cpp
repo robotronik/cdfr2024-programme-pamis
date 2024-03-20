@@ -61,6 +61,9 @@
 #define LPN_PIN GPIO_NUM_33
 #define I2C_RST_PIN GPIO_NUM_35
 #define PWREN_PIN GPIO_NUM_32
+#define LED GPIO_NUM_2
+
+#define THRESHOLD 10
 
 void print_result(VL53L7CX_ResultsData *Result);
 void clear_screen(void);
@@ -75,6 +78,8 @@ bool EnableSignal = false;
 uint8_t res = VL53L7CX_RESOLUTION_4X4;
 char report[256];
 
+uint32_t loopTime, calcTime;
+
 /* Setup ---------------------------------------------------------------------*/
 void setup()
 {
@@ -86,6 +91,7 @@ void setup()
     delay(10);
   }
 
+  pinMode(LED, OUTPUT);
   // Initialize serial for output.
   SerialPort.begin(250000);
 
@@ -96,199 +102,76 @@ void setup()
   sensor_vl53l7cx_top.begin();
 
   sensor_vl53l7cx_top.init_sensor();
-
+  sensor_vl53l7cx_top.vl53l7cx_set_ranging_frequency_hz(50);
   // Start Measurements
   sensor_vl53l7cx_top.vl53l7cx_start_ranging();
 }
 
 void loop()
 {
-  VL53L7CX_ResultsData Results;
+  VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
   uint8_t NewDataReady = 0;
   uint8_t status;
 
+  int8_t i, j, k, l;
+  uint8_t zones_per_line;
+
+  uint16_t minDistance = INT16_MAX;
+
+  loopTime = millis();
+  //Attente de données du capteur
   do {
     status = sensor_vl53l7cx_top.vl53l7cx_check_data_ready(&NewDataReady);
   } while (!NewDataReady);
 
   if ((!status) && (NewDataReady != 0)) {
-    status = sensor_vl53l7cx_top.vl53l7cx_get_ranging_data(&Results);
-    print_result(&Results);
-  }
-
-  if (Serial.available()>0)
-  {
-    handle_cmd(Serial.read());
-  }
-  delay(1000);
-}
-
-void print_result(VL53L7CX_ResultsData *Result)
-{
-  int8_t i, j, k, l;
-  uint8_t zones_per_line;
-  uint8_t number_of_zones = res;
-
-  zones_per_line = (number_of_zones == 16) ? 4 : 8;
-
-  display_commands_banner();
-
-  SerialPort.print("Cell Format :\n\n");
-  
-  for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++)
-  {
-    snprintf(report, sizeof(report)," \033[38;5;10m%20s\033[0m : %20s\n", "Distance [mm]", "Status");
-    SerialPort.print(report);
-
-    if(EnableAmbient || EnableSignal)
-    {
-      snprintf(report, sizeof(report)," %20s : %20s\n", "Signal [kcps/spad]", "Ambient [kcps/spad]");
-      SerialPort.print(report);
-    }
-  }
-
-  SerialPort.print("\n\n");
-
-  for (j = 0; j < number_of_zones; j += zones_per_line)
-  {
-    for (i = 0; i < zones_per_line; i++) 
-      SerialPort.print(" -----------------");
-    SerialPort.print("\n");
+    //Chargement des données dans Results
+    status = sensor_vl53l7cx_top.vl53l7cx_get_ranging_data(Results);
     
-    for (i = 0; i < zones_per_line; i++)
-      SerialPort.print("|                 ");
-    SerialPort.print("|\n");
-  
-    for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++)
-    {
-      // Print distance and status 
-      for (k = (zones_per_line - 1); k >= 0; k--)
-      {
-        if (Result->nb_target_detected[j+k]>0)
-        {
-          snprintf(report, sizeof(report),"| \033[38;5;10m%5ld\033[0m  :  %5ld ",
-              (long)Result->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l],
-              (long)Result->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l]);
-              SerialPort.print(report);
-        }
-        else
-        {
-          snprintf(report, sizeof(report),"| %5s  :  %5s ", "X", "X");
-          SerialPort.print(report);
-        }
-      }
-      SerialPort.print("|\n");
+    zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
 
-      if (EnableAmbient || EnableSignal )
-      {
-        // Print Signal and Ambient 
-        for (k = (zones_per_line - 1); k >= 0; k--)
-        {
-          if (Result->nb_target_detected[j+k]>0)
-          {
-            if (EnableSignal)
-            {
-              snprintf(report, sizeof(report),"| %5ld  :  ", (long)Result->signal_per_spad[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l]);
-              SerialPort.print(report);
-            }
-            else
-            {
-              snprintf(report, sizeof(report),"| %5s  :  ", "X");
-              SerialPort.print(report);
-            }
-            if (EnableAmbient)
-            {
-              snprintf(report, sizeof(report),"%5ld ", (long)Result->ambient_per_spad[j+k]);
-              SerialPort.print(report);
-            }
-            else
-            {
-              snprintf(report, sizeof(report),"%5s ", "X");
-              SerialPort.print(report);
+    //Calul distance minimum
+    calcTime = millis();
+    for (j = 0; j < res; j += zones_per_line){
+      for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
+        for (k = (zones_per_line - 1); k >= 0; k--){
+
+          //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
+          uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
+          if (zoneStatus == 5 || zoneStatus == 9){
+            uint16_t distance = Results->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
+            if (distance < minDistance){
+              minDistance = distance;
             }
           }
-          else
-          {
-            snprintf(report, sizeof(report),"| %5s  :  %5s ", "X", "X");
-            SerialPort.print(report);
-          }
         }
-        SerialPort.print("|\n");
       }
-    }
+    } 
   }
-  for (i = 0; i < zones_per_line; i++)
-   SerialPort.print(" -----------------");
-  SerialPort.print("\n");
-}
 
-void toggle_resolution(void)
-{
-  sensor_vl53l7cx_top.vl53l7cx_stop_ranging();
-
-  switch (res)
-  {
-    case VL53L7CX_RESOLUTION_4X4:
-      res = VL53L7CX_RESOLUTION_8X8;
-      break;
-
-    case VL53L7CX_RESOLUTION_8X8:
-      res = VL53L7CX_RESOLUTION_4X4;
-      break;
-
-    default:
-      break;
+  if (minDistance < THRESHOLD){
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
   }
-  sensor_vl53l7cx_top.vl53l7cx_set_resolution(res);
-  sensor_vl53l7cx_top.vl53l7cx_start_ranging();
-}
 
-void toggle_signal_and_ambient(void)
-{
-  EnableAmbient = (EnableAmbient) ? false : true;
-  EnableSignal = (EnableSignal) ? false : true;
-}
+  free(Results);
+  /*
+  //Affichage du temps d'éxécution de la boucle
+  loopTime = millis() - loopTime;
+  sprintf(report,"Loop time : %d ms", loopTime);
+  Serial.println(report);
 
-void clear_screen(void)
-{
-  snprintf(report, sizeof(report),"%c[2J", 27); /* 27 is ESC command */
-  SerialPort.print(report);
-}
+  //Affichage du temps de calcul
+  calcTime = millis() - calcTime;
+  sprintf(report,"Calc time : %d ms", calcTime);
+  Serial.println(report);
 
-void display_commands_banner(void)
-{
-  snprintf(report, sizeof(report),"%c[2H", 27); /* 27 is ESC command */
-  SerialPort.print(report);
 
-  Serial.print("53L7A1 Simple Ranging demo application\n");
-  Serial.print("--------------------------------------\n\n");
+  //Affichage de la distance minimum
+  sprintf(report, "Distance minimum : %d mm", minDistance);
+  Serial.println(report);
 
-  Serial.print("Use the following keys to control application\n");
-  Serial.print(" 'r' : change resolution\n");
-  Serial.print(" 's' : enable signal and ambient\n");
-  Serial.print(" 'c' : clear screen\n");
-  Serial.print("\n");
-}
-
-void handle_cmd(uint8_t cmd)
-{
-  switch (cmd)
-  {
-    case 'r':
-      toggle_resolution();
-      clear_screen();
-      break;
-
-    case 's':
-      toggle_signal_and_ambient();
-      clear_screen();
-      break;
-
-    case 'c':
-      clear_screen();
-      break;
-
-    default:
-      break;
-  }
+  Serial.println("------------------------------------------------------");
+  */
 }
