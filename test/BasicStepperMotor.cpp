@@ -1,6 +1,6 @@
 #include <Arduino.h>
-const int DIR = 13; //GPIO_NUM_13;
-const int STEP = 12; //GPIO_NUM_12;
+const int DIR = 26; //GPIO_NUM_13;
+const int STEP = 25; //GPIO_NUM_12;
 const int  steps_per_rev = 200;
 
 void setup()

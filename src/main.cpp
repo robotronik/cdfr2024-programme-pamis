@@ -62,7 +62,10 @@
 #define I2C_RST_PIN GPIO_NUM_35
 #define PWREN_PIN GPIO_NUM_32
 #define LED GPIO_NUM_2
+#define DIR_PIN GPIO_NUM_26
+#define STEP_PIN GPIO_NUM_25
 
+#define FREQUENCY_HZ 60
 #define THRESHOLD 10
 
 void print_result(VL53L7CX_ResultsData *Result);
@@ -102,9 +105,14 @@ void setup()
   sensor_vl53l7cx_top.begin();
 
   sensor_vl53l7cx_top.init_sensor();
-  sensor_vl53l7cx_top.vl53l7cx_set_ranging_frequency_hz(50);
+  sensor_vl53l7cx_top.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
+
   // Start Measurements
   sensor_vl53l7cx_top.vl53l7cx_start_ranging();
+
+  //Initialisation du moteur pas à pas
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT); digitalWrite(DIR_PIN, HIGH);
 }
 
 void loop()
@@ -119,6 +127,7 @@ void loop()
   uint16_t minDistance = INT16_MAX;
 
   loopTime = millis();
+
   //Attente de données du capteur
   do {
     status = sensor_vl53l7cx_top.vl53l7cx_check_data_ready(&NewDataReady);
@@ -151,8 +160,17 @@ void loop()
 
   if (minDistance < THRESHOLD){
     digitalWrite(LED, HIGH);
+    digitalWrite(STEP_PIN, LOW);
   } else {
+
+    //Déplacement du moteur pas à pas
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(1000);
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(1000);
+    
     digitalWrite(LED, LOW);
+
   }
 
   free(Results);
