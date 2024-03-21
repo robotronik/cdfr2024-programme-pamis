@@ -168,7 +168,7 @@ void loop()
     delayMicroseconds(1000);
     digitalWrite(STEP_PIN, LOW);
     delayMicroseconds(1000);
-    
+
     digitalWrite(LED, LOW);
 
   }
