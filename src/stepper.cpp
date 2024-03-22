@@ -21,7 +21,7 @@ void Stepper::spinSteps(int dir, int steps, int speed){
         delayMicroseconds(speed);
     }
 }
-void Stepper::spinDistance(int dir, int distance_mm, int speed){
+void Stepper::spinDistance(int dir, int speed, int distance_mm){
     int steps = (distance_mm * 360) / (WHEEL_DIAMETER * 3.14159);
     spinSteps(dir, steps, speed);
 }
