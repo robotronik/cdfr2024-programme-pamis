@@ -39,7 +39,7 @@ class Pami{
         int id; //N° du PAMI, 1-6
         Stepper MoteurDroit;
         Stepper MoteurGauche;
-        VL53L7CX ToF;
+        VL53L7CX sensor;
 
         int speed;
         int x;

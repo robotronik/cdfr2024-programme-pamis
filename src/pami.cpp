@@ -1,10 +1,8 @@
 #include "pami.h"
 
-Pami::Pami(){
-    this->MoteurDroit = Stepper(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV);
-    this->MoteurGauche = Stepper(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV);
-    this->ToF = VL53L7CX(&Wire, LPN_PIN, I2C_RST_PIN);
-}
+Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV), 
+               MoteurGauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
+               sensor(&Wire, LPN_PIN, I2C_RST_PIN) {}
 
 void Pami::moveDist(int dir, int speed, int distance_mm){
     this->MoteurDroit.spinDistance(dir,distance_mm,speed);
@@ -24,6 +22,6 @@ void Pami::goToPos(int x, int y){
 }
 
 void Pami::setPos(int x, int y){
-    this.x = x;
-    this.y = y;
+    this->x = x;
+    this->y = y;
 }
