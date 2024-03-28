@@ -2,7 +2,7 @@
 #define PAMI_H
 
 #include "stepper.h"
-#include "VL53L7CX_class.h"
+#include "vl53l7cx_class.h"
 #include <WiFi.h>
 
 //Pinout
