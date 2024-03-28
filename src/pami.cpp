@@ -4,6 +4,25 @@ Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
                MoteurGauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
                sensor(&Wire, LPN_PIN, I2C_RST_PIN) {}
 
+//Communication
+IPAddress Pami::connectToWiFi(const char* ssid, const char* password){
+    WiFi.mode(WIFI_STA); //Optional
+    WiFi.begin(ssid, password);
+    Serial.println("\nConnecting");
+
+    while(WiFi.status() != WL_CONNECTED){
+        Serial.print(".");
+        delay(100);
+    }
+
+    char* msg;
+    sprintf(msg, "Connected to %s with IP: ", WiFi.SSID());
+    Serial.print(msg);
+    Serial.println(WiFi.localIP());
+    return WiFi.localIP();
+}
+
+//Déplacement
 void Pami::moveDist(int dir, int speed, int distance_mm){
     this->MoteurDroit.spinDistance(dir,distance_mm,speed);
     this->MoteurGauche.spinDistance(dir,distance_mm,speed);

@@ -3,6 +3,7 @@
 
 #include "stepper.h"
 #include "VL53L7CX_class.h"
+#include <WiFi.h>
 
 //Pinout
 #define LEFT_DIR_PIN GPIO_NUM_5
@@ -31,6 +32,13 @@
 class Pami{
     public:
         Pami();
+
+        //Communication
+        IPAddress connectToWiFi(const char* ssid, const char* password);
+        void readData();
+        void sendData(char* data);
+
+        //Déplacement
         void moveDist(int dir, int speed, int distance_mm);
         void steerRad(int dir, int speed, float orientation_rad);
         void setPos(int x, int y);
