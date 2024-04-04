@@ -8,6 +8,13 @@ Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
 void Pami::init(){
     // Initialize I2C bus.
     Wire.begin();
+    
+    // Enable PWREN pin if present
+    if (PWREN_PIN >= 0) {
+        pinMode(PWREN_PIN, OUTPUT);
+        digitalWrite(PWREN_PIN, HIGH);
+        delay(10);
+    }
 
     // Configure VL53L7CX component.
     this->sensor.begin();
