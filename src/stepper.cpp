@@ -1,14 +1,5 @@
 #include "stepper.h"
 
-Stepper::Stepper(int dir_pin, int step_pin, int steps_per_rev)
-{
-    this->dir = dir_pin;
-    this->step = step_pin;
-    this->steps_per_rev = steps_per_rev;
-
-    pinMode(this->step, OUTPUT);
-    pinMode(this->dir, OUTPUT);
-}
 
 void Stepper::spinSteps(int dir, int steps, int speed){
     digitalWrite(this->dir, dir);
@@ -16,9 +7,9 @@ void Stepper::spinSteps(int dir, int steps, int speed){
     for (int i = 0; i < steps; i++)
     {
         digitalWrite(this->step, HIGH);
-        delayMicroseconds(speed);
+        delayMicroseconds(1000);
         digitalWrite(this->step, LOW);
-        delayMicroseconds(speed);
+        delayMicroseconds(1000);
     }
 }
 void Stepper::spinDistance(int dir, int speed, int distance_mm){

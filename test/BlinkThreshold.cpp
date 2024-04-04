@@ -59,12 +59,10 @@
 #define SerialPort Serial
 
 //Pinout 
-#define LPN_PIN GPIO_NUM_33
-#define I2C_RST_PIN GPIO_NUM_35
-#define PWREN_PIN GPIO_NUM_32
+#define LPN_PIN GPIO_NUM_26
+#define I2C_RST_PIN GPIO_NUM_25
+#define PWREN_PIN GPIO_NUM_27
 #define LED GPIO_NUM_2
-#define DIR_PIN GPIO_NUM_26
-#define STEP_PIN GPIO_NUM_25
 
 #define FREQUENCY_HZ 60
 #define THRESHOLD 10
@@ -97,7 +95,7 @@ void setup()
 
   pinMode(LED, OUTPUT);
   // Initialize serial for output.
-  SerialPort.begin(250000);
+  SerialPort.begin(115200);
 
   // Initialize I2C bus.
   DEV_I2C.begin();
@@ -111,9 +109,6 @@ void setup()
   // Start Measurements
   sensor_vl53l7cx_top.vl53l7cx_start_ranging();
 
-  //Initialisation du moteur pas à pas
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT); digitalWrite(DIR_PIN, HIGH);
 }
 
 void loop()
@@ -161,14 +156,7 @@ void loop()
 
   if (minDistance < THRESHOLD){
     digitalWrite(LED, HIGH);
-    digitalWrite(STEP_PIN, LOW);
   } else {
-
-    //Déplacement du moteur pas à pas
-    digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(STEP_PIN, LOW);
-    delayMicroseconds(1000);
 
     digitalWrite(LED, LOW);
 
