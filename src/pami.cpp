@@ -42,7 +42,7 @@ WiFiClient Pami::initWiFi(const char* ssid, const char* password){
     client.remoteIP();
     return client;
 }
-
+/*
 void Pami::readData(WiFiClient client){
     WiFiClient client;
     if (client.connect(this->ip, this->port)){
@@ -59,7 +59,7 @@ void Pami::sendData(WiFiClient client, char* data){
         client.print(data);
         client.stop();
     }
-}
+}*/
 //Capteur ToF
 void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     uint8_t NewDataReady = 0;

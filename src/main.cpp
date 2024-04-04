@@ -1,31 +1,43 @@
-/* Includes ------------------------------------------------------------------*/
 #include <Arduino.h>
-#include <Wire.h>
-#include "pami.h"
+#define LEFT_DIR_PIN GPIO_NUM_5 
+#define LEFT_STEP_PIN  GPIO_NUM_4
 
-Pami pami;
-bool runMotors = true;
+#define RIGHT_DIR_PIN GPIO_NUM_14 
+#define RIGHT_STEP_PIN GPIO_NUM_13
+const int  steps_per_rev = 200;
 
-void setup(){
+void setup()
+{
   Serial.begin(115200);
-  pami.init();
-  Serial.println("Start");
+  pinMode(LEFT_DIR_PIN, OUTPUT); pinMode(RIGHT_DIR_PIN, OUTPUT);
+  pinMode(LEFT_STEP_PIN, OUTPUT); pinMode(RIGHT_STEP_PIN, OUTPUT);
+  Serial.println("Setup done");
 }
 
-void loop(){
-  if (runMotors){
-    pami.MoteurDroit.spinSteps(1, 200, 1000);
-    }
-  
-  VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
+void loop()
+{
+  digitalWrite(LEFT_DIR_PIN, HIGH); digitalWrite(RIGHT_DIR_PIN, HIGH);
+  Serial.println("Spinning Clockwise...");
 
-  pami.getSensorData(Results);
-  if (minValue(Results) < THRESHOLD){
-    runMotors = false;
-    digitalWrite(LED_BUILTIN, HIGH);
+
+  for (int i = 0; i < steps_per_rev; i++)
+  {
+    digitalWrite(LEFT_STEP_PIN, HIGH); digitalWrite(RIGHT_STEP_PIN, HIGH);  
+    delayMicroseconds(2000);
+    digitalWrite(LEFT_STEP_PIN, LOW); digitalWrite(RIGHT_STEP_PIN, LOW);
+    delayMicroseconds(2000);
   }
-  else{
-    runMotors = true;
-    digitalWrite(LED_BUILTIN, LOW);
+  delay(1000);
+
+  digitalWrite(LEFT_DIR_PIN, LOW); digitalWrite(RIGHT_DIR_PIN, LOW);
+  Serial.println("Spinning Anti-Clockwise...");
+
+  for (int i = 0; i < steps_per_rev; i++)
+  {
+    digitalWrite(LEFT_STEP_PIN, HIGH); digitalWrite(RIGHT_STEP_PIN, HIGH);  
+    delayMicroseconds(2000);
+    digitalWrite(LEFT_STEP_PIN, LOW); digitalWrite(RIGHT_STEP_PIN, LOW);
+    delayMicroseconds(2000);
   }
+  delay(1000);
 }
