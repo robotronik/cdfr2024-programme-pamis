@@ -78,13 +78,18 @@ void gestionCapteur(void *pvParameters){
 }
 }
 
+void idle(void* arg){
+
+}
+
 void setup()
 {
   Serial.begin(115200);
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   xTaskCreate(gestionMoteurDroit, "Gestion Moteur Droit", 1000, NULL, 1, NULL);
   xTaskCreate(gestionMoteurGauche, "Gestion Moteur Gauche", 1000, NULL, 1, NULL);
-  xTaskCreate(gestionCapteur, "Gestion Capteur", 1000, NULL, 2, NULL);
+  xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, 1, NULL);
+  xTaskCreate(idle, "Idle", 1000, NULL, 1, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);

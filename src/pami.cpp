@@ -26,7 +26,6 @@ void Pami::init(){
     this->sensor.vl53l7cx_start_ranging();
 
     pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, HIGH);
         
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
