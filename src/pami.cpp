@@ -20,6 +20,14 @@ void Pami::init(){
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
+        
+    // Enable PWREN pin if present
+    if (PWREN_PIN >= 0) {
+    pinMode(PWREN_PIN, OUTPUT);
+    digitalWrite(PWREN_PIN, HIGH);
+    delay(10);
+  }
+  
 }
 //Communication
 WiFiClient Pami::initWiFi(const char* ssid, const char* password){

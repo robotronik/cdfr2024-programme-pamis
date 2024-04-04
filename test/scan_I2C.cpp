@@ -1,24 +1,14 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "pami.h"
-
-
  
 void setup() {
-  // Enable PWREN pin if present
-  if (PWREN_PIN >= 0) {
-    pinMode(PWREN_PIN, OUTPUT);
-    digitalWrite(PWREN_PIN, HIGH);
-    delay(10);
-  }
-
   Wire.begin();
   Serial.begin(115200);
   Serial.println("\nI2C Scanner");
 }
  
 void loop() {
-  byte error, address;
+  uint8_t error, address;
   int nDevices;
   Serial.println("Scanning...");
   nDevices = 0;

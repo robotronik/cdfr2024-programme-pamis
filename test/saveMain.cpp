@@ -84,11 +84,12 @@ void setup()
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   xTaskCreate(gestionMoteurDroit, "Gestion Moteur Droit", 1000, NULL, 1, NULL);
   xTaskCreate(gestionMoteurGauche, "Gestion Moteur Gauche", 1000, NULL, 1, NULL);
-  //xTaskCreate(gestionCapteur, "Gestion Capteur", 1000, NULL, 2, NULL);
+  xTaskCreate(gestionCapteur, "Gestion Capteur", 1000, NULL, 2, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Setup done");
+  while(1){}
 }
 
 void loop()
