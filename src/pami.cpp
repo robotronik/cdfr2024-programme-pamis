@@ -1,7 +1,6 @@
 #include "pami.h"
 
-Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV), 
-               MoteurGauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
+Pami::Pami() : Moteurs(DIR_PIN, STEP_PIN, STEPS_PER_REV),
                sensor(&Wire, LPN_PIN, I2C_RST_PIN) {
 
 }
@@ -92,14 +91,12 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
 
 //Déplacement
 void Pami::moveDist(int dir, int speed, int distance_mm){
-    this->MoteurDroit.spinDistance(dir,distance_mm,speed);
-    this->MoteurGauche.spinDistance(dir,distance_mm,speed);
+    this->Moteurs.spinDistance(dir,distance_mm,speed);
 }
 
 void Pami::steerRad(int dir, int speed, float orientation_rad){
     float distance_mm = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-    this->MoteurDroit.spinDistance(dir,distance_mm,speed);
-    this->MoteurGauche.spinDistance(abs(dir-1),distance_mm,speed);
+    this->Moteurs.spinDistance(dir,distance_mm,speed);
 }
 
 void Pami::goToPos(int x, int y){

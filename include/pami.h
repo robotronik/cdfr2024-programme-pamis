@@ -11,11 +11,8 @@
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
 
-#define LEFT_DIR_PIN GPIO_NUM_5 
-#define LEFT_STEP_PIN  GPIO_NUM_4
-
-#define RIGHT_DIR_PIN GPIO_NUM_14 
-#define RIGHT_STEP_PIN GPIO_NUM_13
+#define DIR_PIN GPIO_NUM_5 
+#define STEP_PIN  GPIO_NUM_4
 
 //Caractéristiques géométriques du PAMI
 #define DISTANCE_CENTRE_POINT_CONTACT_ROUE 0.1 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
@@ -52,8 +49,7 @@ class Pami{
         void detectObstacle();
 
         int id; //N° du PAMI, 1-6
-        Stepper MoteurDroit;
-        Stepper MoteurGauche;
+        Stepper Moteurs;
         VL53L7CX sensor;
 
     private :
