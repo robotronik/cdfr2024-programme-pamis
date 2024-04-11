@@ -1,4 +1,5 @@
 #include "pami.h"
+#include "SPI.h"
 
 Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV), 
                MoteurGauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
@@ -8,6 +9,9 @@ Pami::Pami() : MoteurDroit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
 void Pami::init(){
     // Initialize I2C bus.
     Wire.begin();
+
+    //Initialize SPI bus.
+    SPI.begin();
     
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
@@ -21,21 +25,41 @@ void Pami::init(){
 
     this->sensor.init_sensor();
     this->sensor.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
-
-    // Start Measurements
-    this->sensor.vl53l7cx_start_ranging();
-
-    pinMode(LED_BUILTIN, OUTPUT);
         
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
     pinMode(PWREN_PIN, OUTPUT);
     digitalWrite(PWREN_PIN, HIGH);
     delay(10);
-  }
+    }
+
+    // Start Measurements
+    this->sensor.vl53l7cx_start_ranging();
+
+    pinMode(LED_BUILTIN, OUTPUT);
+
+    //Read HW ID
+    this->id = digitalRead(DS1_PIN)
+            + digitalRead(DS2_PIN)*2
+            + digitalRead(DS3_PIN)*4;
   
 }
+
+void Pami::shutdown(){
+    // Disable PWREN pin if present
+    if (PWREN_PIN >= 0) {
+        digitalWrite(PWREN_PIN, LOW);
+    }
+    // Stop Measurements
+    this->sensor.vl53l7cx_stop_ranging();
+    // Shutdown I2C bus.
+    Wire.end();
+    // Shutdown SPI bus.
+    SPI.end();
+}
+
 //Communication
+/*
 WiFiClient Pami::initWiFi(const char* ssid, const char* password){
     WiFi.mode(WIFI_STA); //Optional
     WiFi.begin(ssid, password);
@@ -56,24 +80,32 @@ WiFiClient Pami::initWiFi(const char* ssid, const char* password){
     client.remoteIP();
     return client;
 }
-/*
-void Pami::readData(WiFiClient client){
-    WiFiClient client;
-    if (client.connect(this->ip, this->port)){
-        while(client.available()){
-            char c = client.read();
-            Serial.print(c);
-        }
-        client.stop();
+*/
+
+//Send data via SPI
+void Pami::sendData(char * data, int length){
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SS, LOW);
+    for (int i = 0; i < length; i++){
+        SPI.transfer(data[i]);
     }
+    digitalWrite(SS, HIGH);
+    SPI.endTransaction();
 }
 
-void Pami::sendData(WiFiClient client, char* data){
-    if (client.connect(ip, port)){
-        client.print(data);
-        client.stop();
+//Read data via SPI
+char * Pami::readData(int length){
+    char * data = (char *)malloc(length);
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SS, LOW);
+    for (int i = 0; i < length; i++){
+        data[i] = SPI.transfer(0);
     }
-}*/
+    digitalWrite(SS, HIGH);
+    SPI.endTransaction();
+    return data;
+}
+
 //Capteur ToF
 void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     uint8_t NewDataReady = 0;

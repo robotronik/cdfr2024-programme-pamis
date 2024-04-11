@@ -87,6 +87,15 @@ void gestionCapteur(void *pvParameters){
   }
 }
 
+void gestionShutdown(void *pvParameters){
+  for(;;){
+    char * data = pami.readData(8);
+    if (data == "shutdown"){
+      pami.shutdown();
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
