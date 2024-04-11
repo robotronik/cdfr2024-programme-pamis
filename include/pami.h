@@ -11,11 +11,8 @@
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
 
-#define LEFT_DIR_PIN GPIO_NUM_5 
-#define LEFT_STEP_PIN  GPIO_NUM_4
-
-#define RIGHT_DIR_PIN GPIO_NUM_14 
-#define RIGHT_STEP_PIN GPIO_NUM_13
+#define DIR_PIN GPIO_NUM_5 
+#define STEP_PIN  GPIO_NUM_4
 
 #define DS1_PIN GPIO_NUM_15
 #define DS2_PIN GPIO_NUM_35
@@ -61,8 +58,7 @@ class Pami{
         void detectObstacle();
 
         int id; //N° du PAMI, 1-6
-        Stepper MoteurDroit;
-        Stepper MoteurGauche;
+        Stepper Moteurs;
         VL53L7CX sensor;
 
     private :

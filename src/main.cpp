@@ -9,25 +9,13 @@ Pami pami;
 
 bool runMotors = true;
 
-void gestionMoteurDroit(void *pvParameters)
+void gestionMoteurs(void *pvParameters)
 {
   for(;;)
   {
     if (runMotors){
       Serial.println("Moteur droit");
-      pami.MoteurDroit.spinDistance(FORWARDS, 100, 100);
-      vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-  }
-}
-
-void gestionMoteurGauche(void *pvParameters)
-{
-  for(;;)
-  {
-    if (runMotors){
-      Serial.println("Moteur gauche");
-      pami.MoteurGauche.spinDistance(FORWARDS, 100, 100);
+      pami.Moteurs.spinDistance(FORWARDS, 100, 100);
       vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
@@ -102,8 +90,7 @@ void setup()
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   pami.init();
 
-  xTaskCreate(gestionMoteurDroit, "Gestion Moteur Droit", 10000, NULL,  tskIDLE_PRIORITY, NULL);
-  xTaskCreate(gestionMoteurGauche, "Gestion Moteur Gauche", 10000, NULL,  tskIDLE_PRIORITY, NULL);
+  xTaskCreate(gestionMoteurs, "Gestion Moteur Droit", 10000, NULL,  tskIDLE_PRIORITY, NULL);
   xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);
