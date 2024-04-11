@@ -41,7 +41,25 @@ void Pami::init(){
     this->id = digitalRead(DS1_PIN)
             + digitalRead(DS2_PIN)*2
             + digitalRead(DS3_PIN)*4;
-  
+
+    //Define zone coordinates
+    switch(this->id){
+        case 1:
+        this->x_zone = 0;
+        this->y_zone = 0; 
+        case 2:
+        this->x_zone = 0;
+        this->y_zone = 0; 
+        case 3:
+        this->x_zone = 0;
+        this->y_zone = 0; 
+        case 4:
+        this->x_zone = 0;
+        this->y_zone = 0; 
+        case 5:
+        this->x_zone = 0;
+        this->y_zone = 0; 
+    }
 }
 
 void Pami::shutdown(){
@@ -121,16 +139,6 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     }
 }
 
-//Déplacement
-void Pami::moveDist(int dir, int speed, int distance_mm){
-    this->Moteurs.spinDistance(dir,distance_mm,speed);
-}
-
-void Pami::steerRad(int dir, int speed, float orientation_rad){
-    float distance_mm = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-    this->Moteurs.spinDistance(dir,distance_mm,speed);
-}
-
 void Pami::goToPos(int x, int y){
     int Dx = x - this->x;
     int Dy = y - this->y;
@@ -138,12 +146,13 @@ void Pami::goToPos(int x, int y){
     float orientation_rad = atan2(Dy,Dx);
     if (orientation_rad != 0){
         int dir = (Dx*cos(orientation_rad) + Dy*sin(orientation_rad));
-        if (dir > 0) dir = RIGHT;
-        else dir = LEFT;
-        this->steerRad(dir, 100, orientation_rad);
+        if (dir > 0) direction = RIGHT;
+        else direction = LEFT;
+        distance = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
     }
-    
-    this->moveDist(FORWARDS, 100, sqrt(Dx*Dx + Dy*Dy));
+    direction = FORWARDS;
+    distance = 10;
+    //distance = sqrt(Dx*Dx + Dy*Dy);
 }
 
 void Pami::setPos(int x, int y){
