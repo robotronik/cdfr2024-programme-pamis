@@ -59,15 +59,18 @@ class Pami{
         void goToPos(int x, int y);
         void detectObstacle();
 
-        int id; //N° du PAMI, 1-6
+        int id; //N° du PAMI, 1-5
         Stepper Moteurs;
         VL53L7CX sensor;
         Si4432 radio;
 
-    private :
-        int speed;
-        int x;
-        int y;
+        int direction = FORWARDS;
+        int speed = 100;
+        int distance;
+        int x = 0;
+        int y = 0;
+        int x_zone;
+        int y_zone;
 };
 
 #endif
