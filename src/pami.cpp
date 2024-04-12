@@ -1,16 +1,15 @@
 #include "pami.h"
-#include "SPI.h"
 
 Pami::Pami() : Moteurs(DIR_PIN, STEP_PIN, STEPS_PER_REV),
-               sensor(&Wire, LPN_PIN, I2C_RST_PIN) {
+               sensor(&Wire, LPN_PIN, I2C_RST_PIN), radio(0, 0) {
 
 }
 void Pami::init(){
     // Initialize I2C bus.
     Wire.begin();
 
-    //Initialize SPI bus.
-    SPI.begin();
+    //Initialize RF module
+    radio.init();
     
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
@@ -27,9 +26,9 @@ void Pami::init(){
         
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
-    pinMode(PWREN_PIN, OUTPUT);
-    digitalWrite(PWREN_PIN, HIGH);
-    delay(10);
+        pinMode(PWREN_PIN, OUTPUT);
+        digitalWrite(PWREN_PIN, HIGH);
+        delay(10);
     }
 
     // Start Measurements
@@ -82,26 +81,14 @@ WiFiClient Pami::initWiFi(const char* ssid, const char* password){
 */
 
 //Send data via SPI
-void Pami::sendData(char * data, int length){
-    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SS, LOW);
-    for (int i = 0; i < length; i++){
-        SPI.transfer(data[i]);
-    }
-    digitalWrite(SS, HIGH);
-    SPI.endTransaction();
+void Pami::sendData(char * data, uint8_t length){
+   this->radio.sendPacket(length, (const byte *) data);
 }
 
 //Read data via SPI
-char * Pami::readData(int length){
-    char * data = (char *)malloc(length);
-    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SS, LOW);
-    for (int i = 0; i < length; i++){
-        data[i] = SPI.transfer(0);
-    }
-    digitalWrite(SS, HIGH);
-    SPI.endTransaction();
+char * Pami::readData(uint8_t length){
+    char* data; 
+    this->radio.getPacketReceived(&length, (byte *) data);
     return data;
 }
 

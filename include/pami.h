@@ -5,6 +5,8 @@
 #include "datmo.h"
 #include "vl53l7cx_class.h"
 #include <WiFi.h>
+#include "SPI.h"
+#include "si4432.h"
 
 //Pinout 
 #define LPN_PIN GPIO_NUM_26
@@ -44,8 +46,8 @@ class Pami{
         void readDataWiFi(WiFiClient client);
         void sendDataWiFi(WiFiClient client, char* data);
         */
-        void sendData(char * data, int length);
-        char * readData(int length);
+        void sendData(char * data, uint8_t length);
+        char * readData(uint8_t length);
 
         //Captuer ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
@@ -60,6 +62,7 @@ class Pami{
         int id; //N° du PAMI, 1-6
         Stepper Moteurs;
         VL53L7CX sensor;
+        Si4432 radio;
 
     private :
         int speed;
