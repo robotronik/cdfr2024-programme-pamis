@@ -14,9 +14,8 @@ void gestionMoteurs(void *pvParameters)
   for(;;)
   {
     if (runMotors){
-      Serial.println("Moteurs");
-      pami.goToPos(pami.x_zone,pami.y_zone);
-      pami.Moteurs.spinDistance(pami.direction, pami.speed, pami.distance);
+      Serial.println("Moteur");
+      pami.Moteurs.spinDistance(FORWARDS, 100, 100);
       vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
@@ -76,13 +75,22 @@ void gestionCapteur(void *pvParameters){
   }
 }
 
+void gestionShutdown(void *pvParameters){
+  for(;;){
+    char * data = pami.readData(8);
+    if (data == "shutdown"){
+      pami.shutdown();
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   pami.init();
 
-  xTaskCreate(gestionMoteurs, "Gestion Moteur", 10000, NULL,  tskIDLE_PRIORITY, NULL);
+  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 10000, NULL,  tskIDLE_PRIORITY, NULL);
   xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);

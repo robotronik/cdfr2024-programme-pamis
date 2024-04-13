@@ -16,6 +16,7 @@
 #ifndef si4432_H_
 #define si4432_H_
 #include "Arduino.h"
+#include "define.h"
 
 /* Now, according to the this design, you must
  * 1- Create an instance
