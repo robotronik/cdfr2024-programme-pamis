@@ -4,10 +4,17 @@
 
 #include "define.h"
 
-Si4432 radio(GPIO_NUM_2, GPIO_NUM_4);
-byte dummy[70] = { 0x01, 0x3, 0x11, 0x13 };
-byte *payLoad = (byte*)malloc(32);
-byte *len = (byte*)malloc(1);
+Si4432 radio(GPIO_NUM_2, 0);
+
+//Data to send
+byte dummy[] = {'H', 'E', 'L', 'L', 'O', ' ', 'W', 'O', 'R', 'L', 'D'};
+byte TxLen = sizeof(dummy) / sizeof(byte);
+
+
+//Received data
+byte *payload; 
+byte *RxLen; 
+byte intStat;
 
 unsigned long pTime;
 //The setup function is called once at startup of the sketch
@@ -18,10 +25,15 @@ void setup() {
 	radio.init();
 	radio.setBaudRate(70);
 	radio.setFrequency(433);
-	radio.readAll();
 
 #ifdef RX
 	radio.startListening();
+	do {
+		payload = (byte*)malloc(MAX_INPUT);
+		RxLen = (byte*)malloc(1);
+		} 
+	while (payload == NULL || RxLen == NULL);
+
 #endif
 	pTime = millis();
 // Add your initialization code here
@@ -32,40 +44,31 @@ void loop() {
 //Add your repeated code here
 
 #ifdef TX
-	byte resLen = 0;
+	byte len = 0;
 	byte answer[64] = { 0 };
 
-	bool pkg = radio.sendPacket(70, dummy);
+	bool pkg = radio.sendPacket(TxLen, dummy);
   Serial.println("Packet sent");
-#endif
-#ifdef RX
-	bool pkg = radio.isPacketReceived();
+  delay(1000);
 #endif
 
 #ifdef RX
-  if (pkg) {
-		radio.getPacketReceived(len, payLoad);
-		Serial.print("PACKET CAME - ");
-		Serial.print(*len, DEC);
-		Serial.print(" - ");
-		Serial.println(millis() - pTime, DEC);
+	if (radio.waitForPacket(1000)) {  
+		radio.getPacketReceived(RxLen, payload);
+    Serial.print(" - PACKET CAME - ");
+    Serial.print(*RxLen, DEC);
+    Serial.print(" - ");
+    Serial.println(millis() - pTime, DEC);
 
-		pTime = millis();
-		for (byte i = 0; i < *len; ++i) {
-			Serial.print((int) payLoad[i], HEX);
-			Serial.print(" ");
-		}
-		Serial.println(" ");
-
-		//Serial.print("Sending response- ");
-		//while (!radio.sendPacket(70, dummy));
-		//Serial.println(" SENT!");
-
-		radio.startListening(); // restart the listening.
+    pTime = millis();
+    for (byte i = 0; i < *RxLen; ++i) {
+      Serial.print((int) payload[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println(" ");
   }
   else{
-		Serial.println("No packet this cycle");
+		//Serial.println("No packet this cycle");
   }
 #endif
-delay(1000);
 }
