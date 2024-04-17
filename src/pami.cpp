@@ -1,7 +1,9 @@
 #include "pami.h"
 
-Pami::Pami() : Moteurs(DIR_PIN, STEP_PIN, STEPS_PER_REV),
-               sensor(&Wire, LPN_PIN, I2C_RST_PIN), radio(0, 0) {
+Pami::Pami() : moteur_droit(DIR_PIN_DROIT, STEP_PIN, STEPS_PER_REV),
+               moteur_gauche(DIR_PIN_GAUCHE, STEP_PIN, STEPS_PER_REV),
+               sensor(&Wire, LPN_PIN, I2C_RST_PIN),
+               radio(0, 0) {
 
 }
 void Pami::init(){

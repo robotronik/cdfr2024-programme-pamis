@@ -13,7 +13,8 @@
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
 
-#define DIR_PIN GPIO_NUM_5 
+#define DIR_PIN_GAUCHE GPIO_NUM_5 
+#define DIR_PIN_DROIT GPIO_NUM_14
 #define STEP_PIN  GPIO_NUM_4
 
 #define DS1_PIN GPIO_NUM_15
@@ -23,15 +24,11 @@
 //Caractéristiques géométriques du PAMI
 #define DISTANCE_CENTRE_POINT_CONTACT_ROUE 0.1 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 
-
-//Macros déplacement PAMI
-#define FORWARDS 1
-#define BACKWARDS 0
-#define LEFT 0
-#define RIGHT 1
-
 #define FREQUENCY_HZ 60
 #define THRESHOLD 10
+
+//Définition des directions
+enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
 
 class Pami{
     public:
@@ -60,17 +57,20 @@ class Pami{
         void detectObstacle();
 
         int id; //N° du PAMI, 1-5
-        Stepper Moteurs;
+        Stepper moteur_gauche;
+        Stepper moteur_droit;   
         VL53L7CX sensor;
         Si4432 radio;
 
-        int direction = FORWARDS;
+        Direction direction = FORWARDS;
         int speed = 100;
         int distance;
-        int x = 0;
-        int y = 0;
-        int x_zone;
-        int y_zone;
+
+        float x = 0;
+        float y = 0;
+        float orientation = 0; //Rad
+        float x_zone;
+        float y_zone;
 };
 
 #endif

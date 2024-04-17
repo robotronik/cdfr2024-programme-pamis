@@ -11,12 +11,44 @@ bool runMotors = true;
 
 void gestionMoteurs(void *pvParameters)
 {
-  for(;;)
-  {
+
+  for(;;){
+	  switch(pami.direction){
+		case FORWARDS:
+			pami.moteur_droit.setDirection(CW);
+			pami.moteur_gauche.setDirection(CW);
+			break;
+		
+		case BACKWARDS:
+			pami.moteur_droit.setDirection(CCW);
+			pami.moteur_gauche.setDirection(CCW);
+			break;
+
+		case LEFT:
+			pami.moteur_droit.setDirection(CW);
+			pami.moteur_gauche.setDirection(CCW);
+			break;
+
+		case RIGHT:
+			pami.moteur_droit.setDirection(CCW);
+			pami.moteur_gauche.setDirection(CW);
+			break;
+
+		case STOP:
+			runMotors = false;
+			break;
+	}
+
     if (runMotors){
-      Serial.println("Moteur");
-      pami.Moteurs.spinDistance(FORWARDS, 100, 100);
+	  digitalWrite(DIR_PIN_DROIT, HIGH);
+	  digitalWrite(DIR_PIN_GAUCHE, HIGH);
       vTaskDelay(pdMS_TO_TICKS(1000));
+
+	  Serial.println("Moteur");
+
+	  digitalWrite(DIR_PIN_DROIT, LOW);	
+	  digitalWrite(DIR_PIN_GAUCHE, LOW);
+	  vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
 }
@@ -82,6 +114,16 @@ void gestionShutdown(void *pvParameters){
       pami.shutdown();
     }
   }
+}
+
+void strategie(void *pvParameters){
+	for(;;){
+		pami.direction = FORWARDS;
+		vTaskDelay(pdMS_TO_TICKS(1000));
+		pami.direction = BACKWARDS;
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+
 }
 
 void setup()

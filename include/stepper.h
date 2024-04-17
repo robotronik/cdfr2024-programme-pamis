@@ -7,6 +7,8 @@
 
 #include <Arduino.h>
 
+enum RotDir {CCW, CW};
+
 class Stepper{
     public:
         Stepper(int dir_pin, int step_pin, int steps_per_rev){
@@ -18,8 +20,9 @@ class Stepper{
             pinMode(this->dir, OUTPUT);
         }
 
-        void spinSteps(int dir, int steps, int speed);
-        void spinDistance(int dir, int speed, int distance_mm);
+        void setDirection(RotDir dir); 
+        void spinSteps(RotDir dir, int steps, int speed);
+        void spinDistance(RotDir dir, int speed, int distance_mm);
 
     private :
         int dir;
