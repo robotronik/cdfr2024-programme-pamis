@@ -43,23 +43,33 @@ void Pami::init(){
             + digitalRead(DS2_PIN)*2
             + digitalRead(DS3_PIN)*4;
 
-    //Define zone coordinates
+    //Defining coordinates
+    // Initially, all the pamis are on the same horizontal axis
+    // and have the same orientation
+    this->x = -925;
+    this->orientation = M_PI/2;
+
     switch(this->id){
         case 1:
-        this->x_zone = 0;
-        this->y_zone = 0; 
+        this->y = -405;
+        this->x_zone = -775;
+        this->y_zone = -1275; 
         case 2:
-        this->x_zone = 0;
-        this->y_zone = 0; 
+        this->y = -315;
+        this->x_zone = -550;
+        this->y_zone = -925; 
         case 3:
-        this->x_zone = 0;
-        this->y_zone = 0; 
+        this->y = -225;
+        this->x_zone = -925;
+        this->y_zone = -737.5; 
         case 4:
-        this->x_zone = 0;
-        this->y_zone = 0; 
+        this->y = -135;
+        this->x_zone = 775;
+        this->y_zone = -1275; 
         case 5:
+        this->y = -45;
         this->x_zone = 0;
-        this->y_zone = 0; 
+        this->y_zone = 1275; 
     }
 }
 
