@@ -25,8 +25,8 @@
 #define DS3_PIN GPIO_NUM_34
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 0.1 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
-
+#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 44 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DIAMETRE_ROUE 78//mm
 #define FREQUENCY_HZ 60
 #define THRESHOLD 10
 
@@ -67,7 +67,7 @@ class Pami{
 
         Direction direction = FORWARDS;
         int speed = 100;
-        int distance;
+        int nbStepsToDo = 0;
 
         float x;
         float y;

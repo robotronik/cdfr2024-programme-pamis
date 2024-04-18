@@ -141,6 +141,7 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
 void Pami::goToPos(int x, int y){
     int Dx = x - this->x;
     int Dy = y - this->y;
+    float distance;
 
     float orientation_rad = atan2(Dy,Dx);
     if (orientation_rad != 0){
@@ -148,10 +149,11 @@ void Pami::goToPos(int x, int y){
         if (dir > 0) direction = RIGHT;
         else direction = LEFT;
         distance = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        this->nbStepsToDo = distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
     }
     direction = FORWARDS;
-    distance = 10;
-    //distance = sqrt(Dx*Dx + Dy*Dy);
+    distance = (float)sqrt(Dx*Dx + Dy*Dy);
+    this->nbStepsToDo = (int)(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
 }
 
 void Pami::setPos(int x, int y){
