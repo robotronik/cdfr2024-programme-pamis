@@ -26,7 +26,7 @@ void Pami::init(){
     this->sensor.init_sensor();
     this->sensor.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
         
-    // Enable PWREN pin if present
+    // Enable PWREN pin if presentxTaskCreate(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL);
     if (PWREN_PIN >= 0) {
         pinMode(PWREN_PIN, OUTPUT);
         digitalWrite(PWREN_PIN, HIGH);
@@ -48,29 +48,41 @@ void Pami::init(){
     // and have the same orientation
     this->x = -925;
     this->orientation = M_PI/2;
+    this->y = -405;
+        this->x_zone = -775;
+        this->y_zone = -1275; 
+    
 
-    switch(this->id){
+    /*switch(this->id){
         case 1:
         this->y = -405;
         this->x_zone = -775;
         this->y_zone = -1275; 
+        break;
         case 2:
         this->y = -315;
         this->x_zone = -550;
         this->y_zone = -925; 
+        break;
         case 3:
         this->y = -225;
         this->x_zone = -925;
         this->y_zone = -737.5; 
+        break;
         case 4:
         this->y = -135;
         this->x_zone = 775;
         this->y_zone = -1275; 
+        break;
         case 5:
         this->y = -45;
         this->x_zone = 0;
         this->y_zone = 1275; 
-    }
+        break;
+    }*/
+    this->nbStepsDone=0;
+    this->nbStepsToDo=0;
+    this->direction=STOP;
 }
 
 void Pami::shutdown(){
@@ -142,18 +154,40 @@ void Pami::goToPos(int x, int y){
     int Dx = x - this->x;
     int Dy = y - this->y;
     float distance;
+    char msg[50];
 
     float orientation_rad = atan2(Dy,Dx);
+    this->orientation = orientation_rad;
     if (orientation_rad != 0){
         int dir = (Dx*cos(orientation_rad) + Dy*sin(orientation_rad));
-        if (dir > 0) direction = RIGHT;
-        else direction = LEFT;
+        if (dir > 0) {
+            this->direction = RIGHT;
+            Serial.print("Turning Right: ");
+        }
+        else{
+            this->direction = LEFT;
+            Serial.print("Turning Left: ");
+        }
         distance = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        this->nbStepsToDo = distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
+        this->nbStepsToDo = abs(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+        Serial.println(this->nbStepsToDo);
+        while(this->nbStepsDone < this->nbStepsToDo){Serial.println(this->nbStepsDone);}
+        this->nbStepsDone = 0;
+        this->nbStepsToDo = 0;
+        this->direction=STOP;
+        
     }
-    direction = FORWARDS;
+    
+    Serial.print("Moving Forward: ");
+    Serial.println(this->nbStepsToDo);
+    this->direction = FORWARDS;
     distance = (float)sqrt(Dx*Dx + Dy*Dy);
     this->nbStepsToDo = (int)(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    while(this->nbStepsDone < this->nbStepsToDo);
+    this->nbStepsDone = 0;
+    this->nbStepsToDo = 0;
+    this->direction=STOP;
+    
 }
 
 void Pami::setPos(int x, int y){

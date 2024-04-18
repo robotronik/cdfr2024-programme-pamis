@@ -7,8 +7,7 @@
 // Components
 Pami pami;
 
-bool runMotors = true;
-int nbStepsDone = 0;
+bool runMotors;
 
 void gestionMoteurs(void *pvParameters)
 {
@@ -16,21 +15,25 @@ void gestionMoteurs(void *pvParameters)
   for(;;){
 	  switch(pami.direction){
 		case FORWARDS:
+      runMotors = true;
 			pami.moteur_droit.setDirection(CW);
 			pami.moteur_gauche.setDirection(CW);
 			break;
 		
 		case BACKWARDS:
+      runMotors = true;
 			pami.moteur_droit.setDirection(CCW);
 			pami.moteur_gauche.setDirection(CCW);
 			break;
 
 		case LEFT:
+      runMotors = true;
 			pami.moteur_droit.setDirection(CCW);
 			pami.moteur_gauche.setDirection(CW);
 			break;
 
 		case RIGHT:
+      runMotors = true;
 			pami.moteur_droit.setDirection(CW);
 			pami.moteur_gauche.setDirection(CCW);
 			break;
@@ -39,15 +42,15 @@ void gestionMoteurs(void *pvParameters)
 			runMotors = false;
 			break;
 	}
+    
 
-
-    if (runMotors  && nbStepsDone < pami.nbStepsToDo){
+    if (runMotors){
 	  digitalWrite(RIGHT_STEP_PIN, HIGH);
 	  digitalWrite(LEFT_STEP_PIN, HIGH);
     vTaskDelay(pdMS_TO_TICKS(2));
 
-	  Serial.println("Moteur");
-    nbStepsDone++;
+	  //Serial.println("Moteur");
+    pami.nbStepsDone++;
 
 	  digitalWrite(RIGHT_STEP_PIN, LOW);	
 	  digitalWrite(LEFT_STEP_PIN, LOW);
@@ -57,6 +60,7 @@ void gestionMoteurs(void *pvParameters)
 }
 
 void gestionCapteur(void *pvParameters){
+  Serial.println("debutgestioncapteur");
   VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
   uint8_t NewDataReady = 0;
   uint8_t status;
@@ -78,7 +82,7 @@ void gestionCapteur(void *pvParameters){
       
       zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
 
-      Serial.println("Capteur");
+      //Serial.println("Capteur");
       //Calul distance minimum
       for (j = 0; j < res; j += zones_per_line){
         for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
@@ -120,20 +124,24 @@ void gestionShutdown(void *pvParameters){
 }
 
 void strategie(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(100));
+  Serial.println("Début Strat");
 	pami.goToPos(pami.x_zone, pami.y_zone);
-  pami.direction = STOP;
+  for(;;);
 }
 
 void setup()
 {
   Serial.begin(115200);
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
-  pami.init();
+  
   pami.id = 1;
-
-  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 10000, NULL,  configMAX_PRIORITIES-1, NULL);
-  xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
-  xTaskCreate(strategie, "Stratégie", 10000, NULL, configMAX_PRIORITIES, NULL);
+  pami.init();
+  
+  
+  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
+  //xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 100000, NULL, configMAX_PRIORITIES, NULL,1);
+  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,0);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);

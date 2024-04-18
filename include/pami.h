@@ -67,6 +67,7 @@ class Pami{
 
         Direction direction = FORWARDS;
         int speed = 100;
+        int nbStepsDone = 0;
         int nbStepsToDo = 0;
 
         float x;
