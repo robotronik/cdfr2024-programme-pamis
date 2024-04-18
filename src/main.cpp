@@ -25,13 +25,13 @@ void gestionMoteurs(void *pvParameters)
 			break;
 
 		case LEFT:
-			pami.moteur_droit.setDirection(CW);
-			pami.moteur_gauche.setDirection(CCW);
+			pami.moteur_droit.setDirection(CCW);
+			pami.moteur_gauche.setDirection(CW);
 			break;
 
 		case RIGHT:
-			pami.moteur_droit.setDirection(CCW);
-			pami.moteur_gauche.setDirection(CW);
+			pami.moteur_droit.setDirection(CW);
+			pami.moteur_gauche.setDirection(CCW);
 			break;
 
 		case STOP:
@@ -40,15 +40,15 @@ void gestionMoteurs(void *pvParameters)
 	}
 
     if (runMotors){
-	  digitalWrite(DIR_PIN_DROIT, HIGH);
-	  digitalWrite(DIR_PIN_GAUCHE, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(1000));
+	  digitalWrite(RIGHT_STEP_PIN, HIGH);
+	  digitalWrite(LEFT_STEP_PIN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(2));
 
 	  Serial.println("Moteur");
 
-	  digitalWrite(DIR_PIN_DROIT, LOW);	
-	  digitalWrite(DIR_PIN_GAUCHE, LOW);
-	  vTaskDelay(pdMS_TO_TICKS(1000));
+	  digitalWrite(RIGHT_STEP_PIN, LOW);	
+	  digitalWrite(LEFT_STEP_PIN, LOW);
+	  vTaskDelay(pdMS_TO_TICKS(2));
     }
   }
 }
@@ -118,8 +118,13 @@ void gestionShutdown(void *pvParameters){
 
 void strategie(void *pvParameters){
 	for(;;){
+    Serial.println("Stratégie");
 		pami.direction = FORWARDS;
 		vTaskDelay(pdMS_TO_TICKS(1000));
+    pami.direction = RIGHT;
+		vTaskDelay(pdMS_TO_TICKS(500));
+    pami.direction = LEFT;
+		vTaskDelay(pdMS_TO_TICKS(500));
 		pami.direction = BACKWARDS;
 		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
@@ -132,8 +137,9 @@ void setup()
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   pami.init();
 
-  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 10000, NULL,  tskIDLE_PRIORITY, NULL);
+  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 10000, NULL,  configMAX_PRIORITIES-1, NULL);
   xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(strategie, "Stratégie", 10000, NULL, configMAX_PRIORITIES, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);

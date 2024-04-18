@@ -1,104 +1,43 @@
-/* Includes ------------------------------------------------------------------*/
 #include <Arduino.h>
-#include <Wire.h>
-#include "pami.h"
-#include "soc/rtc_wdt.h"
+#define LEFT_DIR_PIN GPIO_NUM_5 
+#define LEFT_STEP_PIN  GPIO_NUM_4
 
-// Components
-Pami pami;
-
-bool runMotors = true;
-
-void gestionMoteurs(void *pvParameters)
-{
-  for(;;)
-  {
-    if (runMotors){
-      Serial.println("Moteur");
-      pami.Moteurs.spinDistance(FORWARDS, 100, 100);
-      vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-  }
-}
-
-void gestionCapteur(void *pvParameters){
-  VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
-  uint8_t NewDataReady = 0;
-  uint8_t status;
-  uint8_t res = VL53L7CX_RESOLUTION_4X4;
-
-  int8_t i, j, k, l;
-  uint8_t zones_per_line;
-
-  uint16_t minDistance;
-  TickType_t xLastWakeTime;
-
-  for(;;){
-    xLastWakeTime = xTaskGetTickCount();
-    status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
-    minDistance = INT16_MAX;
-    if ((!status) && (NewDataReady != 0)) {
-      //Chargement des données dans Results
-      status = pami.sensor.vl53l7cx_get_ranging_data(Results);
-      
-      zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
-
-      Serial.println("Capteur");
-      //Calul distance minimum
-      for (j = 0; j < res; j += zones_per_line){
-        for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
-          for (k = (zones_per_line - 1); k >= 0; k--){
-
-            //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
-            uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-            if (zoneStatus == 5 || zoneStatus == 9){
-              uint16_t distance = Results->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-              if (distance < minDistance){
-                minDistance = distance;
-              }
-            }
-          }
-        }   
-      }
-
-      if (minDistance < THRESHOLD){
-        runMotors = false;
-        digitalWrite(LED_BUILTIN, HIGH);
-      }
-      else {
-        runMotors = true;
-        digitalWrite(LED_BUILTIN, LOW);
-      }
-
-    }
-  vTaskDelayUntil(&xLastWakeTime,100);
-  }
-}
-
-void gestionShutdown(void *pvParameters){
-  for(;;){
-    char * data = pami.readData(8);
-    if (data == "shutdown"){
-      pami.shutdown();
-    }
-  }
-}
+#define RIGHT_DIR_PIN GPIO_NUM_14 
+#define RIGHT_STEP_PIN GPIO_NUM_13
+const int  steps_per_rev = 200;
 
 void setup()
 {
   Serial.begin(115200);
-  //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
-  pami.init();
-
-  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 10000, NULL,  tskIDLE_PRIORITY, NULL);
-  xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
-
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
+  pinMode(LEFT_DIR_PIN, OUTPUT); pinMode(RIGHT_DIR_PIN, OUTPUT);
+  pinMode(LEFT_STEP_PIN, OUTPUT); pinMode(RIGHT_STEP_PIN, OUTPUT);
   Serial.println("Setup done");
-  while(1){}
 }
 
 void loop()
 {
+  digitalWrite(LEFT_DIR_PIN, HIGH); digitalWrite(RIGHT_DIR_PIN, HIGH);
+  Serial.println("Spinning Clockwise...");
+
+
+  for (int i = 0; i < steps_per_rev; i++)
+  {
+    digitalWrite(LEFT_STEP_PIN, HIGH); digitalWrite(RIGHT_STEP_PIN, HIGH);  
+    delayMicroseconds(2000);
+    digitalWrite(LEFT_STEP_PIN, LOW); digitalWrite(RIGHT_STEP_PIN, LOW);
+    delayMicroseconds(2000);
+  }
+  delay(1000);
+
+  digitalWrite(LEFT_DIR_PIN, LOW); digitalWrite(RIGHT_DIR_PIN, LOW);
+  Serial.println("Spinning Anti-Clockwise...");
+
+  for (int i = 0; i < steps_per_rev; i++)
+  {
+    digitalWrite(LEFT_STEP_PIN, HIGH); digitalWrite(RIGHT_STEP_PIN, HIGH);  
+    delayMicroseconds(2000);
+    digitalWrite(LEFT_STEP_PIN, LOW); digitalWrite(RIGHT_STEP_PIN, LOW);
+    delayMicroseconds(2000);
+  }
+  delay(1000);
 }

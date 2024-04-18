@@ -1,7 +1,7 @@
 #include "pami.h"
 
-Pami::Pami() : moteur_droit(DIR_PIN_DROIT, STEP_PIN, STEPS_PER_REV),
-               moteur_gauche(DIR_PIN_GAUCHE, STEP_PIN, STEPS_PER_REV),
+Pami::Pami() : moteur_droit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
+               moteur_gauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
                sensor(&Wire, LPN_PIN, I2C_RST_PIN),
                radio(0, 0) {
 
@@ -11,7 +11,7 @@ void Pami::init(){
     Wire.begin();
 
     //Initialize RF module
-    radio.init();
+    //radio.init();
     
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
