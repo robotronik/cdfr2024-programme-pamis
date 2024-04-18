@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include "SPI.h"
 #include "si4432.h"
+#include "math.h"
 
 //Pinout 
 #define LPN_PIN GPIO_NUM_26
@@ -68,9 +69,9 @@ class Pami{
         int speed = 100;
         int distance;
 
-        float x = 0;
-        float y = 0;
-        float orientation = 0; //Rad
+        float x;
+        float y;
+        float orientation; //Rad
         float x_zone;
         float y_zone;
 };
