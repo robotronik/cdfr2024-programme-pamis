@@ -25,13 +25,6 @@ void Pami::init(){
 
     this->sensor.init_sensor();
     this->sensor.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
-        
-    // Enable PWREN pin if presentxTaskCreate(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL);
-    if (PWREN_PIN >= 0) {
-        pinMode(PWREN_PIN, OUTPUT);
-        digitalWrite(PWREN_PIN, HIGH);
-        delay(10);
-    }
 
     // Start Measurements
     this->sensor.vl53l7cx_start_ranging();
@@ -39,21 +32,17 @@ void Pami::init(){
     pinMode(LED_BUILTIN, OUTPUT);
 
     //Read HW ID
-    this->id = digitalRead(DS1_PIN)
+    /*this->id = digitalRead(DS1_PIN)
             + digitalRead(DS2_PIN)*2
-            + digitalRead(DS3_PIN)*4;
+            + digitalRead(DS3_PIN)*4;*/
 
     //Defining coordinates
     // Initially, all the pamis are on the same horizontal axis
     // and have the same orientation
     this->x = -925;
     this->orientation = M_PI/2;
-    this->y = -405;
-        this->x_zone = -775;
-        this->y_zone = -1275; 
     
-
-    /*switch(this->id){
+    switch(this->id){
         case 1:
         this->y = -405;
         this->x_zone = -775;
@@ -79,7 +68,7 @@ void Pami::init(){
         this->x_zone = 0;
         this->y_zone = 1275; 
         break;
-    }*/
+    }
     this->nbStepsDone=0;
     this->nbStepsToDo=0;
     this->direction=STOP;
@@ -171,10 +160,7 @@ void Pami::goToPos(int x, int y){
         distance = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
         this->nbStepsToDo = abs(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
         Serial.println(this->nbStepsToDo);
-        while(this->nbStepsDone < this->nbStepsToDo){Serial.println(this->nbStepsDone);}
-        this->nbStepsDone = 0;
-        this->nbStepsToDo = 0;
-        this->direction=STOP;
+        this->waitForPos();
         
     }
     
@@ -183,14 +169,18 @@ void Pami::goToPos(int x, int y){
     this->direction = FORWARDS;
     distance = (float)sqrt(Dx*Dx + Dy*Dy);
     this->nbStepsToDo = (int)(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
-    while(this->nbStepsDone < this->nbStepsToDo);
-    this->nbStepsDone = 0;
-    this->nbStepsToDo = 0;
-    this->direction=STOP;
+    this->waitForPos();
     
 }
 
 void Pami::setPos(int x, int y){
     this->x = x;
     this->y = y;
+}
+
+void Pami::waitForPos(){
+    while(this->nbStepsDone < this->nbStepsToDo){Serial.println(this->nbStepsDone);};
+    this->nbStepsDone = 0;
+    this->nbStepsToDo = 0;
+    this->direction=STOP;
 }

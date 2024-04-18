@@ -135,7 +135,7 @@ void setup()
   Serial.begin(115200);
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
   
-  pami.id = 1;
+  pami.id = 5;
   pami.init();
   
   
