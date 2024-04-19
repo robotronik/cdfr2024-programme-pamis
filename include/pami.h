@@ -51,10 +51,11 @@ class Pami{
 
         //Captuer ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
+        uint16_t getMin();
         
         //Déplacement
-        void moveDist(int dir, int speed, int distance_mm);
-        void steerRad(int dir, int speed, float orientation_rad);
+        void moveDist(Direction dir, int distance_mm);
+        void steerRad(Direction dir, float orientation_rad);
         void setPos(int x, int y);
         void goToPos(int x, int y);
         void waitForPos();

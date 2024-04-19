@@ -123,7 +123,9 @@ char * Pami::readData(uint8_t length){
     return data;
 }
 
-//Capteur ToF
+/*
+*Capteur ToF
+*/
 void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     uint8_t NewDataReady = 0;
     uint8_t status;
@@ -137,6 +139,68 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
         //Chargement des données dans Results
         status = this->sensor.vl53l7cx_get_ranging_data(Results);
     }
+}
+
+uint16_t Pami::getMin(){
+    uint16_t minDistance = INT16_MAX;
+    uint8_t NewDataReady = 0;
+    uint8_t status;
+    uint8_t res = VL53L7CX_RESOLUTION_4X4;
+
+    uint8_t i, j, k, l;
+    uint8_t zones_per_line;
+
+    status = this->sensor.vl53l7cx_check_data_ready(&NewDataReady);
+    VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
+
+    //Attente de données du capteur
+    if ((!status) && (NewDataReady != 0)) {
+      //Chargement des données dans Results
+      status = this->sensor.vl53l7cx_get_ranging_data(Results);
+      
+      zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
+
+      //Serial.println("Capteur");
+      //Calul distance minimum
+      for (j = 0; j < res; j += zones_per_line){
+        for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
+          for (k = (zones_per_line - 1); k >= 0; k--){
+
+            //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
+            uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
+            if (zoneStatus == 5 || zoneStatus == 9){
+              uint16_t distance = Results->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
+              if (distance < minDistance){
+                minDistance = distance;
+              }
+            }
+          }
+        }   
+      }
+    }
+
+    free(Results);
+    return minDistance;
+}
+
+/*************
+ * Déplacement
+ *************/
+
+void Pami::moveDist(Direction dir, int distance_mm){
+    this->direction = dir;
+    this->nbStepsToDo = abs(distance_mm*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    Serial.println(this->nbStepsToDo);
+    this->waitForPos();
+}
+
+
+void Pami::steerRad(Direction dir, float orientation_rad){
+    if (dir != LEFT && dir != RIGHT) return;
+    this->direction = dir;
+    this->nbStepsToDo = abs(orientation_rad*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    Serial.println(this->nbStepsToDo);
+    this->waitForPos();
 }
 
 void Pami::goToPos(int x, int y){
@@ -157,19 +221,12 @@ void Pami::goToPos(int x, int y){
             this->direction = LEFT;
             Serial.print("Turning Left: ");
         }
-        distance = orientation_rad * DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        this->nbStepsToDo = abs(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
-        Serial.println(this->nbStepsToDo);
-        this->waitForPos();
+        this->steerRad(this->direction, orientation_rad);
         
     }
     
     Serial.print("Moving Forward: ");
-    Serial.println(this->nbStepsToDo);
-    this->direction = FORWARDS;
-    distance = (float)sqrt(Dx*Dx + Dy*Dy);
-    this->nbStepsToDo = (int)(distance*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
-    this->waitForPos();
+    this->moveDist(FORWARDS, sqrt(Dx*Dx + Dy*Dy));
     
 }
 
@@ -179,7 +236,9 @@ void Pami::setPos(int x, int y){
 }
 
 void Pami::waitForPos(){
-    while(this->nbStepsDone < this->nbStepsToDo){Serial.println(this->nbStepsDone);};
+    while(this->nbStepsDone < this->nbStepsToDo){
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
     this->nbStepsDone = 0;
     this->nbStepsToDo = 0;
     this->direction=STOP;
