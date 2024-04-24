@@ -14,52 +14,52 @@ void gestionMoteurs(void *pvParameters)
 
   for(;;){
 	  switch(pami.direction){
-		case FORWARDS:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CW);
-			pami.moteur_gauche.setDirection(CW);
-      pami.x += (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-      pami.y += (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-			break;
-		
-		case BACKWARDS:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CCW);
-			pami.moteur_gauche.setDirection(CCW);
-      pami.x -= (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-      pami.y -= (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-			break;
+      case FORWARDS:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CW);
+        pami.moteur_gauche.setDirection(CW);
+        pami.x += (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y += (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        break;
+      
+      case BACKWARDS:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CCW);
+        pami.moteur_gauche.setDirection(CCW);
+        pami.x -= (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y -= (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        break;
 
-		case LEFT:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CCW);
-			pami.moteur_gauche.setDirection(CW);
-      pami.orientation -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-			break;
+      case LEFT:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CCW);
+        pami.moteur_gauche.setDirection(CW);
+        pami.orientation -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        break;
 
-		case RIGHT:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CW);
-			pami.moteur_gauche.setDirection(CCW);
-      pami.orientation += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-			break;
+      case RIGHT:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CW);
+        pami.moteur_gauche.setDirection(CCW);
+        pami.orientation += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        break;
 
-		case STOP:
-			runMotors = false;
-			break;
-	}
+      case STOP:
+        runMotors = false;
+        break;
+	  }
     
 
     if (runMotors){
-	  digitalWrite(RIGHT_STEP_PIN, HIGH);
-	  digitalWrite(LEFT_STEP_PIN, HIGH);
-    vTaskDelay(pdMS_TO_TICKS(2));
+      digitalWrite(RIGHT_STEP_PIN, HIGH);
+      digitalWrite(LEFT_STEP_PIN, HIGH);
+      vTaskDelay(pdMS_TO_TICKS(2));
 
-    pami.nbStepsDone++;
+      pami.nbStepsDone++;
 
-	  digitalWrite(RIGHT_STEP_PIN, LOW);	
-	  digitalWrite(LEFT_STEP_PIN, LOW);
-	  vTaskDelay(pdMS_TO_TICKS(2));
+      digitalWrite(RIGHT_STEP_PIN, LOW);	
+      digitalWrite(LEFT_STEP_PIN, LOW);
+      vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     else{
