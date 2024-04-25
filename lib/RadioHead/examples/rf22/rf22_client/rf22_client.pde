@@ -21,8 +21,6 @@ void setup()
   if (!rf22.init())
     Serial.println("init failed");
   // Defaults after init are 434.0MHz, 0.05MHz AFC pull-in, modulation FSK_Rb2_4Fd36
-  else
-    Serial.println("init OK!");
 }
 
 void loop()
