@@ -8,58 +8,64 @@
 Pami pami;
 
 bool runMotors;
+bool dodgeMotors = false;
 
 void gestionMoteurs(void *pvParameters)
 {
 
   for(;;){
 	  switch(pami.direction){
-		case FORWARDS:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CW);
-			pami.moteur_gauche.setDirection(CW);
-      pami.x += (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-      pami.y += (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-			break;
-		
-		case BACKWARDS:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CCW);
-			pami.moteur_gauche.setDirection(CCW);
-      pami.x -= (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-      pami.y -= (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-			break;
+      case FORWARDS:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CW);
+        pami.moteur_gauche.setDirection(CW);
+        pami.x += (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y += (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        break;
+      
+      case BACKWARDS:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CCW);
+        pami.moteur_gauche.setDirection(CCW);
+        pami.x -= (int)(cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y -= (int)(sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        break;
 
-		case LEFT:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CCW);
-			pami.moteur_gauche.setDirection(CW);
-      pami.orientation -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-			break;
+      case LEFT:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CCW);
+        pami.moteur_gauche.setDirection(CW);
+        pami.orientation -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        break;
 
-		case RIGHT:
-      runMotors = true;
-			pami.moteur_droit.setDirection(CW);
-			pami.moteur_gauche.setDirection(CCW);
-      pami.orientation += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-			break;
+      case RIGHT:
+        runMotors = true;
+        pami.moteur_droit.setDirection(CW);
+        pami.moteur_gauche.setDirection(CCW);
+        pami.orientation += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        break;
 
-		case STOP:
-			runMotors = false;
-			break;
-	}
+      case STOP:
+        runMotors = false;
+        break;
+	  }
     
 
     if (runMotors){
-	  digitalWrite(RIGHT_STEP_PIN, HIGH);
-	  digitalWrite(LEFT_STEP_PIN, HIGH);
-    vTaskDelay(pdMS_TO_TICKS(2));
+      digitalWrite(RIGHT_STEP_PIN, HIGH);
+      digitalWrite(LEFT_STEP_PIN, HIGH);
+      vTaskDelay(pdMS_TO_TICKS(2));
 
-    pami.nbStepsDone++;
+      pami.nbStepsDone++;
 
-	  digitalWrite(RIGHT_STEP_PIN, LOW);	
-	  digitalWrite(LEFT_STEP_PIN, LOW);
-	  vTaskDelay(pdMS_TO_TICKS(2));
+      digitalWrite(RIGHT_STEP_PIN, LOW);	
+      digitalWrite(LEFT_STEP_PIN, LOW);
+      vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    else if(dodgeMotors){
+      pami.steerRad(LEFT, M_PI/2);
+      pami.moveDist(FORWARDS, 100);
+      dodgeMotors = false;
     }
 
     else{
@@ -69,6 +75,8 @@ void gestionMoteurs(void *pvParameters)
 }
 
 void gestionCapteur(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(10));
+
   Serial.println("Début gestion capteur");
   
   uint16_t minDistance = INT16_MAX;
@@ -112,14 +120,16 @@ void gestionCapteur(void *pvParameters){
       }
     }
     
-    Serial.println(minDistance);
+    
 
     if (minDistance < THRESHOLD){
       runMotors = false;
+      dodgeMotors = true;
       digitalWrite(LED_BUILTIN, HIGH);
     }
     else {
       runMotors = true;
+      dodgeMotors = false;
       digitalWrite(LED_BUILTIN, LOW);
     }
 
@@ -153,13 +163,13 @@ void setup()
 {
   Serial.begin(115200);
   //pami.connectToWiFi("RaspberryRobotronik", "robotronik");
-  
+  Wire.begin();
   pami.id = 1;
   pami.init();
   
-  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 100000, NULL, configMAX_PRIORITIES-1, NULL,1);
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,0);
+  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL);
+  //xTaskCreate(gestionCapteur, "Gestion Capteur", 100000, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);

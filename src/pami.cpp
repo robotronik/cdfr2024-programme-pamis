@@ -72,6 +72,8 @@ void Pami::init(){
     this->nbStepsDone=0;
     this->nbStepsToDo=0;
     this->direction=STOP;
+
+    Serial.println("Setup done pami.init()");
 }
 
 void Pami::shutdown(){

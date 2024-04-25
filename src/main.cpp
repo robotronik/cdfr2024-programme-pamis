@@ -61,6 +61,7 @@ void gestionMoteurs(void *pvParameters)
       digitalWrite(LEFT_STEP_PIN, LOW);
       vTaskDelay(pdMS_TO_TICKS(2));
     }
+    
 
     else{
       vTaskDelay(pdMS_TO_TICKS(1));
@@ -68,22 +69,35 @@ void gestionMoteurs(void *pvParameters)
   }
 }
 
+void dodge(void *pvParameters){
+  Serial.println("Dodging obstacle");
+  runMotors = true;
+  pami.steerRad(LEFT, M_PI/2);
+  pami.moveDist(FORWARDS, 100);
+}
+
 void gestionCapteur(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(10));
+
   Serial.println("Début gestion capteur");
-  
-  uint16_t minDistance = INT16_MAX;
+
   uint8_t NewDataReady = 0;
   uint8_t status;
-  uint8_t res = VL53L7CX_RESOLUTION_4X4;
 
-  uint8_t i, j, k, l;
+  int8_t i, j, k, l;
   uint8_t zones_per_line;
 
-  VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
+  uint16_t minDistance = INT16_MAX;
+  uint8_t res = VL53L7CX_RESOLUTION_4X4;
+  
   TickType_t xLastWakeTime;
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
+
+
+    VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
+
     status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
     //Attente de données du capteur
     if ((!status) && (NewDataReady != 0)) {
@@ -110,20 +124,27 @@ void gestionCapteur(void *pvParameters){
           }
         }   
       }
-    }
-    
+
+          Serial.print("Distance minimale: ");
     Serial.println(minDistance);
 
     if (minDistance < THRESHOLD){
-      runMotors = false;
+      runMotors = true;
       digitalWrite(LED_BUILTIN, HIGH);
+      vTaskResume(dodge);
+     
+
     }
     else {
       runMotors = true;
       digitalWrite(LED_BUILTIN, LOW);
+      vTaskSuspend(dodge);
     }
 
-    vTaskDelayUntil(&xLastWakeTime,100);
+    free(Results);
+    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(1));
+    }
+
   }
 }
 
@@ -140,7 +161,7 @@ void strategie(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(10));
   Serial.println("Début Strat");
 
-	pami.moveDist(FORWARDS, 100);
+	pami.moveDist(FORWARDS, 1000);
 
   //xTaskCreatePinnedToCore(gestionShutdown, "Gestion Shutdown", 100, NULL, configMAX_PRIORITIES, NULL,0);
   Serial.println("Fin Strat");
@@ -157,11 +178,11 @@ void setup()
   pami.id = 1;
   pami.init();
   
-  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
-  //xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 100000, NULL, configMAX_PRIORITIES-1, NULL,1);
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,0);
-
-  pinMode(LED_BUILTIN, OUTPUT);
+  xTaskCreate(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL);
+  xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(strategie, "Stratégie", 100000, NULL, tskIDLE_PRIORITY, NULL);
+  xTaskCreate(dodge, "Esquive", 100000, NULL, configMAX_PRIORITIES-1, NULL);
+  vTaskSuspend(dodge);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Setup done");
   for(;;);
