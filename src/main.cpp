@@ -131,14 +131,12 @@ void gestionCapteur(void *pvParameters){
     if (minDistance < THRESHOLD){
       runMotors = true;
       digitalWrite(LED_BUILTIN, HIGH);
-      vTaskResume(dodge);
      
 
     }
     else {
       runMotors = true;
       digitalWrite(LED_BUILTIN, LOW);
-      vTaskSuspend(dodge);
     }
 
     free(Results);
@@ -182,7 +180,6 @@ void setup()
   xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES, NULL);
   xTaskCreate(strategie, "Stratégie", 100000, NULL, tskIDLE_PRIORITY, NULL);
   xTaskCreate(dodge, "Esquive", 100000, NULL, configMAX_PRIORITIES-1, NULL);
-  vTaskSuspend(dodge);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Setup done");
   for(;;);

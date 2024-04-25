@@ -2,8 +2,7 @@
 
 Pami::Pami() : moteur_droit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
                moteur_gauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
-               sensor(&Wire, LPN_PIN, I2C_RST_PIN),
-               radio(0, 0) {
+               sensor(&Wire, LPN_PIN, I2C_RST_PIN){
 
 }
 void Pami::init(){
@@ -112,18 +111,6 @@ WiFiClient Pami::initWiFi(const char* ssid, const char* password){
     return client;
 }
 */
-
-//Send data via SPI
-void Pami::sendData(char * data, uint8_t length){
-   this->radio.sendPacket(length, (const byte *) data);
-}
-
-//Read data via SPI
-char * Pami::readData(uint8_t length){
-    char* data; 
-    this->radio.getPacketReceived(&length, (byte *) data);
-    return data;
-}
 
 /*
 *Capteur ToF

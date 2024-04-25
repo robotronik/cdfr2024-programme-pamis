@@ -6,7 +6,6 @@
 #include "vl53l7cx_class.h"
 #include <WiFi.h>
 #include "SPI.h"
-#include "si4432.h"
 #include "math.h"
 
 //Pinout 
@@ -65,7 +64,6 @@ class Pami{
         Stepper moteur_gauche;
         Stepper moteur_droit;   
         VL53L7CX sensor;
-        Si4432 radio;
 
         Direction direction = FORWARDS;
         int speed = 100;
