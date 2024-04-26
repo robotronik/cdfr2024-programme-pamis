@@ -35,11 +35,24 @@
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
 enum State {IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
 
-//Commande de déplacement (roatation ou translation)
+//Commande de déplacement (rotation ou translation)
 typedef struct _instruction{
     Direction dir;
     int nbSteps;
 } Instruction;
+
+//Structure d'une zone
+typedef struct _zone{
+    int zone_id; //Le numéro de la zone
+    //Les deux points de la diagonale
+    float x_1;
+    float y_1; 
+    float x_2;
+    float y_2;
+    //Le centre de la zone
+    float x_center;
+    float y_center;
+} Zone;
 
 class Pami{
     public:
@@ -82,8 +95,8 @@ class Pami{
         float x;
         float y;
         float orientation; //Rad
-        float x_zone;
-        float y_zone;
+        
+        Zone zone;
 
         uint16_t closestObstacle = UINT16_MAX;
         State state;

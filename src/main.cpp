@@ -173,7 +173,7 @@ void strategie(void *pvParameters){
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
         Serial.println("Go for target");
-        pami.goToPos(pami.x_zone, pami.y_zone);
+        pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
         Serial.println("Moving");
         break;

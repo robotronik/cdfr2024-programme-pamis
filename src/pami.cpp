@@ -44,28 +44,48 @@ void Pami::init(){
     switch(this->id){
         case 1:
         this->y = -405;
-        this->x_zone = -775;
-        this->y_zone = -1275; 
+        this->zone.x_center = -775;
+        this->zone.y_center = -1275;
+        this->zone.x_1 = -1000;
+        this->zone.y_1 = -1500;
+        this->zone.x_2 = -550;
+        this->zone.y_2 = -1050; 
         break;
         case 2:
         this->y = -315;
-        this->x_zone = -550;
-        this->y_zone = -925; 
+        this->zone.x_center = -550;
+        this->zone.y_center = -925;
+        this->zone.x_1 = -775;
+        this->zone.y_1 = -1275; 
+        this->zone.x_2 = -775;
+        this->zone.y_2 = -1275; 
         break;
         case 3:
         this->y = -225;
-        this->x_zone = -925;
-        this->y_zone = -737.5; 
+        this->zone.x_center = -925;
+        this->zone.y_center = -737.5; 
+        this->zone.x_1 = -775;
+        this->zone.y_1 = -1275;
+        this->zone.x_2 = -775;
+        this->zone.y_2 = -1275; 
         break;
         case 4:
         this->y = -135;
-        this->x_zone = 775;
-        this->y_zone = -1275; 
+        this->zone.x_center = 775;
+        this->zone.y_center = -1275; 
+        this->zone.x_1 = -550;
+        this->zone.y_1 = -1500; 
+        this->zone.x_2 = 1000;
+        this->zone.y_2 = -1050; 
         break;
         case 5:
         this->y = -45;
-        this->x_zone = 0;
-        this->y_zone = 1275; 
+        this->zone.x_center = 0;
+        this->zone.y_center = 1275; 
+        this->zone.x_1 = -225;
+        this->zone.y_1 = 150; 
+        this->zone.x_2 = 225;
+        this->zone.y_2 = 1500; 
         break;
     }
     this->nbStepsToDo=0;
@@ -172,7 +192,7 @@ void Pami::setPos(int x, int y){
 }
 
 bool Pami::inZone(){
-    return (this->x == this->x_zone && this->y == this->y_zone);
+    return (this->x == this->zone.x_center && this->y == this->zone.y_center);
 }
 
 void Pami::addInstruction(Direction dir, int nbSteps){
