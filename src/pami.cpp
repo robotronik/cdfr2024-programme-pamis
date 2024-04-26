@@ -23,7 +23,7 @@ void Pami::init(){
     this->sensor.begin();
 
     this->sensor.init_sensor();
-    this->sensor.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
+    this->sensor.vl53l7cx_set_ranging_frequency_hz(SENSOR_FREQUENCY_HZ);
 
     // Start Measurements
     this->sensor.vl53l7cx_start_ranging();
@@ -68,11 +68,9 @@ void Pami::init(){
         this->y_zone = 1275; 
         break;
     }
-    this->nbStepsDone=0;
     this->nbStepsToDo=0;
     this->direction=STOP;
-
-    Serial.println("Setup done pami.init()");
+    this->state = IDLE; 
 }
 
 void Pami::shutdown(){
@@ -130,73 +128,25 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     }
 }
 
-uint16_t Pami::getMin(){
-    uint16_t minDistance = INT16_MAX;
-    uint8_t NewDataReady = 0;
-    uint8_t status;
-    uint8_t res = VL53L7CX_RESOLUTION_4X4;
-
-    uint8_t i, j, k, l;
-    uint8_t zones_per_line;
-
-    status = this->sensor.vl53l7cx_check_data_ready(&NewDataReady);
-    VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
-
-    //Attente de données du capteur
-    if ((!status) && (NewDataReady != 0)) {
-      //Chargement des données dans Results
-      status = this->sensor.vl53l7cx_get_ranging_data(Results);
-      
-      zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
-
-      //Serial.println("Capteur");
-      //Calul distance minimum
-      for (j = 0; j < res; j += zones_per_line){
-        for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
-          for (k = (zones_per_line - 1); k >= 0; k--){
-
-            //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
-            uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-            if (zoneStatus == 5 || zoneStatus == 9){
-              uint16_t distance = Results->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-              if (distance < minDistance){
-                minDistance = distance;
-              }
-            }
-          }
-        }   
-      }
-    }
-
-    free(Results);
-    return minDistance;
-}
-
 /*************
  * Déplacement
  *************/
 
 void Pami::moveDist(Direction dir, int distance_mm){
-    this->direction = dir;
-    this->nbStepsToDo = abs(distance_mm*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
-    Serial.println(this->nbStepsToDo);
-    this->waitForPos();
+    int nbSteps = abs(distance_mm*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    this->addInstruction(dir,  nbSteps);
 }
-
 
 void Pami::steerRad(Direction dir, float orientation_rad){
     if (dir != LEFT && dir != RIGHT) return;
-    this->direction = dir;
-    this->nbStepsToDo = abs(orientation_rad*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
-    Serial.println(this->nbStepsToDo);
-    this->waitForPos();
+    int nbSteps = abs(orientation_rad*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    this->addInstruction(dir,  nbSteps);
 }
 
 void Pami::goToPos(int x, int y){
     int Dx = x - this->x;
     int Dy = y - this->y;
     float distance;
-    char msg[50];
 
     float orientation_rad = atan2(Dy,Dx);
     this->orientation = orientation_rad;
@@ -204,17 +154,14 @@ void Pami::goToPos(int x, int y){
         int dir = (Dx*cos(orientation_rad) + Dy*sin(orientation_rad));
         if (dir > 0) {
             this->direction = RIGHT;
-            Serial.print("Turning Right: ");
         }
         else{
             this->direction = LEFT;
-            Serial.print("Turning Left: ");
         }
         this->steerRad(this->direction, orientation_rad);
         
     }
     
-    Serial.print("Moving Forward: ");
     this->moveDist(FORWARDS, sqrt(Dx*Dx + Dy*Dy));
     
 }
@@ -224,11 +171,43 @@ void Pami::setPos(int x, int y){
     this->y = y;
 }
 
-void Pami::waitForPos(){
-    while(this->nbStepsDone < this->nbStepsToDo){
-        vTaskDelay(pdMS_TO_TICKS(1));
+bool Pami::inZone(){
+    return (this->x == this->x_zone && this->y == this->y_zone);
+}
+
+void Pami::addInstruction(Direction dir, int nbSteps){
+    if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
+        this->listInstruction[this->nbInstructions].dir = dir;
+        this->listInstruction[this->nbInstructions].nbSteps = nbSteps;
+        Serial.print("Instruction added: ");
+        Serial.print(this->listInstruction[this->nbInstructions].dir);
+        Serial.print(" ");
+        Serial.println(this->listInstruction[this->nbInstructions].nbSteps);
+        this->nbInstructions++;
     }
-    this->nbStepsDone = 0;
-    this->nbStepsToDo = 0;
-    this->direction=STOP;
+}
+
+void Pami::clearInstructions(){
+    this->nbInstructions = 0;
+    for (int i=0; i<NB_MAX_INSTRUCTIONS; i++){
+        this->listInstruction[i].dir = STOP;
+        this->listInstruction[i].nbSteps = 0;
+    }
+    Serial.println("Instructions cleared");
+}
+
+void Pami::executeNextInstruction(){
+    if (this->nbInstructions >= 0){
+        this->direction = this->listInstruction[0].dir;
+        this->nbStepsToDo = this->listInstruction[0].nbSteps;
+
+        for (int i=0; i<this->nbInstructions; i++){
+            this->listInstruction[i] = this->listInstruction[i+1];
+        }
+        this->nbInstructions--;
+        Serial.print("Executing instruction: ");
+        Serial.print(this->direction);
+        Serial.print(" ");
+        Serial.println(this->nbStepsToDo);
+    }
 }

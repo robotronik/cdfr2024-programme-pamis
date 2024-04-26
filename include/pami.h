@@ -23,14 +23,23 @@
 #define DS2_PIN GPIO_NUM_35
 #define DS3_PIN GPIO_NUM_34
 
+#define NB_MAX_INSTRUCTIONS 10
+
 //Caractéristiques géométriques du PAMI
 #define DISTANCE_CENTRE_POINT_CONTACT_ROUE 46 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 #define DIAMETRE_ROUE 78//mm
-#define FREQUENCY_HZ 60
+#define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30
 
 //Définition des directions
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
+enum State {IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
+
+//Commande de déplacement (roatation ou translation)
+typedef struct _instruction{
+    Direction dir;
+    int nbSteps;
+} Instruction;
 
 class Pami{
     public:
@@ -48,17 +57,18 @@ class Pami{
         void sendData(char * data, uint8_t length);
         char * readData(uint8_t length);
 
-        //Captuer ToF
+        //Capteur ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
-        uint16_t getMin();
         
         //Déplacement
         void moveDist(Direction dir, int distance_mm);
         void steerRad(Direction dir, float orientation_rad);
         void setPos(int x, int y);
         void goToPos(int x, int y);
-        void waitForPos();
-        void detectObstacle();
+        bool inZone();
+        void addInstruction(Direction dir, int nbSteps);
+        void clearInstructions();
+        void executeNextInstruction();
 
         int id; //N° du PAMI, 1-5
         Stepper moteur_gauche;
@@ -67,7 +77,6 @@ class Pami{
 
         Direction direction = FORWARDS;
         int speed = 100;
-        int nbStepsDone = 0;
         int nbStepsToDo = 0;
 
         float x;
@@ -75,6 +84,11 @@ class Pami{
         float orientation; //Rad
         float x_zone;
         float y_zone;
+
+        uint16_t closestObstacle = UINT16_MAX;
+        State state;
+        Instruction listInstruction[NB_MAX_INSTRUCTIONS];
+        int nbInstructions = 0;
 };
 
 #endif
