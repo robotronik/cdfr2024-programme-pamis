@@ -241,16 +241,20 @@ void Pami::executeNextInstruction(){
         Serial.print(" ");
         Serial.println(this->nbStepsToDo);
     }
-    else 
-        Serial.println("No instruction to execute");
 }
 
-void Pami::printPos(){
-    Serial.print(" x = ");
-    Serial.print(this->x);
-    Serial.print(" y = ");
-    Serial.print(this->y);
-    Serial.print(" orientation = ");
-    Serial.print(this->theta);
-    Serial.println(" rad");
+void Pami::connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp){
+    WiFi.mode(WIFI_STA); 
+    WiFi.begin(ssid, password);
+    Serial.println("\nConnecting");
+    while(WiFi.status() != WL_CONNECTED){
+        Serial.print(".");
+        delay(100);
+    }
+    Serial.print("\nConnected with IP adress: ");
+    Serial.println(WiFi.localIP());
+    udp.begin(LOCALPORT);
+ 	Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
+    configTime(GMTOFFSET, DAYLOFFSET, serverip);
+
 }
