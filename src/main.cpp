@@ -4,6 +4,8 @@
 #include "pami.h"
 #include "soc/rtc_wdt.h"
 
+#define MATCH
+
 // Components
 Pami pami;
 
@@ -16,27 +18,27 @@ void gestionMoteurs(void *pvParameters)
       case FORWARDS:
         pami.moteur_droit.setDirection(CW);
         pami.moteur_gauche.setDirection(CW);
-        pami.x += (cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y += (sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.x += (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y += (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
         break;
       
       case BACKWARDS:
         pami.moteur_droit.setDirection(CCW);
         pami.moteur_gauche.setDirection(CCW);
-        pami.x -= (cos(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y -= (sin(pami.orientation) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.x -= (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+        pami.y -= (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
         break;
 
       case LEFT:
         pami.moteur_droit.setDirection(CCW);
         pami.moteur_gauche.setDirection(CW);
-        pami.orientation -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        pami.theta -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
         break;
 
       case RIGHT:
         pami.moteur_droit.setDirection(CW);
         pami.moteur_gauche.setDirection(CCW);
-        pami.orientation += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        pami.theta += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
         break;
 
       case STOP:
@@ -139,40 +141,50 @@ void strategie(void *pvParameters){
         Serial.println("Idle");
       //if signal top départ
         if (!pami.inZone())
-          pami.state = GO_FOR_TARGET;
+          pami.moveDist(FORWARDS, 100);
+          pami.executeNextInstruction();
+          pami.state = MOVING;
         break;
 
       case MOVING:
-        //Zone non atteinte
-        if (pami.nbStepsToDo == 0 && !pami.inZone()){
-          if (pami.nbInstructions != 0){
-            pami.executeNextInstruction();
-            pami.state = MOVING;
+        //Pami à l'arrêt  
+        if (pami.nbStepsToDo == 0){
+          pami.printPos();
+          //Zone non atteinte
+          if (!pami.inZone()){
+            if (pami.nbInstructions != 0){
+              pami.executeNextInstruction();
+              pami.state = MOVING;
+            }
+            else{
+              pami.state = GO_FOR_TARGET;
+            }
           }
-          else{
-            pami.state = GO_FOR_TARGET;
+
+          //Zone atteinte
+          else {
+            Serial.println("Zone atteinte"); 
+            pami.printPos();
+            pami.clearInstructions();
+            pami.state = IDLE;
           }
-        }
-        //Zone atteinte
-        else if (pami.nbStepsToDo == 0){
-          Serial.println("Zone atteinte");
-          pami.clearInstructions();
-          pami.state = IDLE;
         }
 
         //Pami en mouvement
-        else if (pami.nbStepsToDo > 0 && pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
-          pami.state = AVOID_OBSTACLE;
-        }  
-
         else if (pami.nbStepsToDo > 0){
-          pami.state = MOVING;
+          //Obstacle détecté
+          if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
+            pami.state = AVOID_OBSTACLE;
+          }
+          else{
+            pami.state = MOVING;
+          }
         }
         break;
 
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
-        Serial.println("Go for target");
+        Serial.print("Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
         Serial.println("Moving");
@@ -180,7 +192,7 @@ void strategie(void *pvParameters){
 
       //Détection d'obstacle ==> évitement
       case AVOID_OBSTACLE:
-        Serial.print("Obstacle detected at: x = "); Serial.print(pami.x); Serial.print(" y = "); Serial.print(pami.y); Serial.print(" Orientation = "); Serial.print(pami.orientation); Serial.println(" rad");
+        Serial.print("Obstacle detected at: x = "); pami.printPos();
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
@@ -193,6 +205,24 @@ void strategie(void *pvParameters){
   } 
 }
 
+void mouvement(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(10));
+  Serial.println("Début Mouvement");
+
+  pami.printPos();
+
+  pami.moveDist(FORWARDS, 100);
+  pami.executeNextInstruction();
+  pami.state = MOVING;
+  for(;;){
+    if (pami.nbStepsToDo == 0){
+      pami.printPos();
+      pami.state = IDLE;  
+    }
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -203,7 +233,12 @@ void setup()
   
   xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
   xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
+  #ifdef TEST_MVT
+  xTaskCreatePinnedToCore(mouvement, "Mouvement", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
+  #endif
+  #ifdef MATCH
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
+  #endif
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Setup done");

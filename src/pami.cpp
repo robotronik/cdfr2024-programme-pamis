@@ -39,7 +39,7 @@ void Pami::init(){
     // Initially, all the pamis are on the same horizontal axis
     // and have the same orientation
     this->x = -925;
-    this->orientation = M_PI/2;
+    this->theta = 0;
     
     switch(this->id){
         case 1:
@@ -130,9 +130,9 @@ WiFiClient Pami::initWiFi(const char* ssid, const char* password){
 }
 */
 
-/*
+/***********
 *Capteur ToF
-*/
+************/
 void Pami::getSensorData(VL53L7CX_ResultsData *Results){
     uint8_t NewDataReady = 0;
     uint8_t status;
@@ -157,28 +157,34 @@ void Pami::moveDist(Direction dir, int distance_mm){
     this->addInstruction(dir,  nbSteps);
 }
 
-void Pami::steerRad(Direction dir, float orientation_rad){
+void Pami::steerRad(Direction dir, float Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
-    int nbSteps = abs(orientation_rad*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    int nbSteps = abs(Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
     this->addInstruction(dir,  nbSteps);
 }
 
-void Pami::goToPos(int x, int y){
-    int Dx = x - this->x;
-    int Dy = y - this->y;
+void Pami::goToPos(int x_target, int y_target){
+    int Dx = x_target - this->x;
+    int Dy = y_target - this->y;
     float distance;
 
-    float orientation_rad = atan2(Dy,Dx);
-    this->orientation = orientation_rad;
-    if (orientation_rad != 0){
-        int dir = (Dx*cos(orientation_rad) + Dy*sin(orientation_rad));
-        if (dir > 0) {
+    float theta_target = atan2f(Dy,Dx);
+    float Dtheta = theta_target - this->theta;
+    
+    // Normalisation de l'angle entre -pi et pi
+    Dtheta = fmod(Dtheta + M_PI, 2 * M_PI) - M_PI;
+
+    Serial.print("Dx = "); Serial.print(Dx); Serial.print(" mm ");
+    Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
+    Serial.print("theta_target = "); Serial.print(Dtheta); Serial.println(" rad");
+
+    if (Dtheta != 0) {
+        if (Dtheta > 0) {
             this->direction = RIGHT;
-        }
-        else{
+        } else {
             this->direction = LEFT;
         }
-        this->steerRad(this->direction, orientation_rad);
+        this->steerRad(this->direction, Dtheta);
         
     }
     
@@ -192,9 +198,14 @@ void Pami::setPos(int x, int y){
 }
 
 bool Pami::inZone(){
-    return (this->x == this->zone.x_center && this->y == this->zone.y_center);
+    bool x_in_zone = (this->x >= this->zone.x_1 && this->x <= this->zone.x_2);
+    bool y_in_zone = (this->y >= this->zone.y_1 && this->y <= this->zone.y_2);  
+    return (x_in_zone && y_in_zone);
 }
 
+/**********************
+ * Instructions moteurs
+***********************/
 void Pami::addInstruction(Direction dir, int nbSteps){
     if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
         this->listInstruction[this->nbInstructions].dir = dir;
@@ -230,4 +241,16 @@ void Pami::executeNextInstruction(){
         Serial.print(" ");
         Serial.println(this->nbStepsToDo);
     }
+    else 
+        Serial.println("No instruction to execute");
+}
+
+void Pami::printPos(){
+    Serial.print(" x = ");
+    Serial.print(this->x);
+    Serial.print(" y = ");
+    Serial.print(this->y);
+    Serial.print(" orientation = ");
+    Serial.print(this->theta);
+    Serial.println(" rad");
 }

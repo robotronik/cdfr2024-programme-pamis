@@ -35,7 +35,7 @@
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
 enum State {IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
 
-//Commande de déplacement (rotation ou translation)
+//Commande moteurs
 typedef struct _instruction{
     Direction dir;
     int nbSteps;
@@ -83,6 +83,9 @@ class Pami{
         void clearInstructions();
         void executeNextInstruction();
 
+        //Utilities
+        void printPos();    
+
         int id; //N° du PAMI, 1-5
         Stepper moteur_gauche;
         Stepper moteur_droit;   
@@ -94,7 +97,7 @@ class Pami{
 
         float x;
         float y;
-        float orientation; //Rad
+        float theta; //Rad
         
         Zone zone;
 
