@@ -87,6 +87,9 @@ class Pami{
         void addInstruction(Direction dir, int nbSteps);
         void clearInstructions();
         void executeNextInstruction();
+        void connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp);
+        void printLocalTime(struct tm* timeinfo);
+
 
         int id; //N° du PAMI, 1-5
         Stepper moteur_gauche;
