@@ -30,6 +30,11 @@
 #define DIAMETRE_ROUE 78//mm
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30
+//Caractéristiques connexion WiFi
+#define LOCALPORT 9999
+#define SERVERPORT 8888
+#define GMTOFFSET 3600
+#define DAYLOFFSET 3600
 
 //Définition des directions
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
