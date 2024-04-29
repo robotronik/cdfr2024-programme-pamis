@@ -231,3 +231,18 @@ void Pami::executeNextInstruction(){
         Serial.println(this->nbStepsToDo);
     }
 }
+void Pami::connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp){
+    WiFi.mode(WIFI_STA); 
+    WiFi.begin(ssid, password);
+    Serial.println("\nConnecting");
+    while(WiFi.status() != WL_CONNECTED){
+        Serial.print(".");
+        delay(100);
+    }
+    Serial.print("\nConnected with IP adress: ");
+    Serial.println(WiFi.localIP());
+    udp.begin(LOCALPORT);
+ 	Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
+    configTime(GMTOFFSET, DAYLOFFSET, serverip);
+
+}
