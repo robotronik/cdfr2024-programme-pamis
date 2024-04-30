@@ -20,38 +20,41 @@ void gestionMoteurs(void *pvParameters)
   TickType_t xLastWakeTime;
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
-	  switch(pami.direction){
-      case FORWARDS:
-        pami.moteur_droit.setDirection(CW);
-        pami.moteur_gauche.setDirection(CW);
-        pami.x += (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y += (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        break;
-      
-      case BACKWARDS:
-        pami.moteur_droit.setDirection(CCW);
-        pami.moteur_gauche.setDirection(CCW);
-        pami.x -= (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y -= (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        break;
-
-      case LEFT:
-        pami.moteur_droit.setDirection(CCW);
-        pami.moteur_gauche.setDirection(CW);
-        pami.theta -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        break;
-
-      case RIGHT:
-        pami.moteur_droit.setDirection(CW);
-        pami.moteur_gauche.setDirection(CCW);
-        pami.theta += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        break;
-
-      case STOP:
-        break;
-	  }
 
     if (pami.state == MOVING){
+      switch(pami.direction){
+        case FORWARDS:
+          pami.moteur_droit.setDirection(CW);
+          pami.moteur_gauche.setDirection(CW);
+          pami.x += (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+          pami.y += (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+          break;
+        
+        case BACKWARDS:
+          pami.moteur_droit.setDirection(CCW);
+          pami.moteur_gauche.setDirection(CCW);
+          pami.x -= (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+          pami.y -= (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
+          break;
+
+        case LEFT:
+          pami.moteur_droit.setDirection(CCW);
+          pami.moteur_gauche.setDirection(CW);
+          pami.theta += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+          pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI;  
+          break;
+
+        case RIGHT:
+          pami.moteur_droit.setDirection(CW);
+          pami.moteur_gauche.setDirection(CCW);
+          pami.theta -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+          pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI; 
+          break;
+
+        case STOP:
+          break;
+      }
+
       digitalWrite(RIGHT_STEP_PIN, HIGH);
       digitalWrite(LEFT_STEP_PIN, HIGH);
       vTaskDelay(pdMS_TO_TICKS(2));
@@ -151,7 +154,7 @@ void ReceptionUDP(void *pvParameters){
  	}
  	delay(100);
  	Serial.print("[Client Connected] "); Serial.println(WiFi.localIP());
-  printLocalTime(&timeinfo);
+  pami.printLocalTime(&timeinfo);
   /*
  	udp.beginPacket(server_ip, SERVERPORT);
  	char buf[30];
@@ -173,12 +176,13 @@ void strategie(void *pvParameters){
     switch(pami.state){
 
       case IDLE:
-        Serial.println("Idle");
       //if signal top départ
-        if (!pami.inZone())
+        if (!pami.inZone()){
+          Serial.println("Idle");
           pami.moveDist(FORWARDS, 100);
           pami.executeNextInstruction();
           pami.state = MOVING;
+        }
         break;
 
       case MOVING:
@@ -197,7 +201,7 @@ void strategie(void *pvParameters){
           }
 
           //Zone atteinte
-          else {
+          else if (pami.inZone()) {
             Serial.println("Zone atteinte"); 
             pami.printPos();
             pami.clearInstructions();
@@ -206,7 +210,7 @@ void strategie(void *pvParameters){
         }
 
         //Pami en mouvement
-        else if (pami.nbStepsToDo > 0){
+        else if (pami.nbStepsToDo != 0){
           //Obstacle détecté
           if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
             pami.state = AVOID_OBSTACLE;
@@ -222,12 +226,13 @@ void strategie(void *pvParameters){
         Serial.print("Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
+        pami.executeNextInstruction();
         Serial.println("Moving");
         break;
 
       //Détection d'obstacle ==> évitement
       case AVOID_OBSTACLE:
-        Serial.print("Obstacle detected at: x = "); pami.printPos();
+        Serial.print("Obstacle detected at:"); pami.printPos();
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
@@ -262,12 +267,12 @@ void setup()
 {
   WiFiUDP udp;
   Serial.begin(115200);
-  pami.connectToWiFi(ssid,password,server_ip,udp);
-  
-  pami.id = 1;
+
+  pami.id = 2;
   pami.init();
   
-  xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES-1,NULL,0);
+  
+  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES-1,NULL,0);
 
   
   xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);

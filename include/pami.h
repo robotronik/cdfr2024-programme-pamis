@@ -29,7 +29,8 @@
 #define DISTANCE_CENTRE_POINT_CONTACT_ROUE 46 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 #define DIAMETRE_ROUE 78//mm
 #define SENSOR_FREQUENCY_HZ 10
-#define THRESHOLD 30
+#define THRESHOLD 30//mm
+
 //Caractéristiques connexion WiFi
 #define LOCALPORT 9999
 #define SERVERPORT 8888

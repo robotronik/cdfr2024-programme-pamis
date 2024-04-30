@@ -9,8 +9,8 @@ void Pami::init(){
     // Initialize I2C bus.
     Wire.begin();
 
-    //Initialize RF module
-    //radio.init();
+    //Initialize WiFi and UDP
+    //pami.connectToWiFi(ssid,password,server_ip,udp);
     
     // Enable PWREN pin if present
     if (PWREN_PIN >= 0) {
@@ -159,20 +159,20 @@ void Pami::moveDist(Direction dir, int distance_mm){
 
 void Pami::steerRad(Direction dir, float Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
-    int nbSteps = abs(Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+    int nbSteps = Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
     this->addInstruction(dir,  nbSteps);
 }
 
 void Pami::goToPos(int x_target, int y_target){
-    int Dx = x_target - this->x;
-    int Dy = y_target - this->y;
-    float distance;
+    float Dx = x_target - this->x;
+    float Dy = y_target - this->y;
+    float distance = sqrt(Dx*Dx + Dy*Dy);
 
     float theta_target = atan2f(Dy,Dx);
     float Dtheta = theta_target - this->theta;
     
     // Normalisation de l'angle entre -pi et pi
-    Dtheta = fmod(Dtheta + M_PI, 2 * M_PI) - M_PI;
+    Dtheta = fmodf(Dtheta + M_PI, 2 * M_PI) - M_PI;
 
     Serial.print("Dx = "); Serial.print(Dx); Serial.print(" mm ");
     Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
@@ -180,15 +180,14 @@ void Pami::goToPos(int x_target, int y_target){
 
     if (Dtheta != 0) {
         if (Dtheta > 0) {
-            this->direction = RIGHT;
-        } else {
             this->direction = LEFT;
+        } else {
+            this->direction = RIGHT;
         }
-        this->steerRad(this->direction, Dtheta);
-        
+        this->steerRad(this->direction, abs(Dtheta));
     }
     
-    this->moveDist(FORWARDS, sqrt(Dx*Dx + Dy*Dy));
+    this->moveDist(FORWARDS, distance);
     
 }
 
@@ -256,5 +255,19 @@ void Pami::connectToWiFi(const char* ssid,const char* password,const char* serve
     udp.begin(LOCALPORT);
  	Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
     configTime(GMTOFFSET, DAYLOFFSET, serverip);
-
 }
+
+void Pami::printPos(){
+    Serial.print("x = "); Serial.print(this->x); Serial.print(" mm ");
+    Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
+    Serial.print("theta = "); Serial.print(this->theta); Serial.println(" rad");
+}
+
+void Pami::printLocalTime(struct tm* timeinfo){
+    Serial.print("Time: ");
+    Serial.print(timeinfo->tm_hour);
+    Serial.print(":");
+    Serial.print(timeinfo->tm_min);
+    Serial.print(":");
+    Serial.println(timeinfo->tm_sec);
+}   
