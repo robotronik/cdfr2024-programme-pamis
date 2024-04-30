@@ -62,7 +62,24 @@ void Pami::init(){
     
     switch(this->couleur){
         case BLEU:
-            this->zone = zones_bleues[this->id];
+            this->zone = zones_bleues[this->id-1];
+            switch(this->id){
+                case 1: 
+                    this->y = -405;
+                    break;
+                case 2: 
+                    this->y = -315;
+                    break;
+                case 3: 
+                    this->y = -225;
+                    break;
+                case 4: 
+                    this->y = -135;
+                    break;
+                case 5: 
+                    this->y = -45;
+                    break;
+            }
             break;
         case JAUNE:
             this->zone = zones_jaunes[this->id];
