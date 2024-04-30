@@ -40,53 +40,33 @@ void Pami::init(){
     // and have the same orientation
     this->x = -925;
     this->theta = 0;
+
+    //6 zones par couleur
+    Zone zones_bleues[6] = {
+        {1, JARDINIERE, -775, -1275, -550, -1050, -775, -1275},
+        {2, JARDINIERE, -550, -925, -775, -1275, -550, -925},
+        {3, JARDINIERE, -925, -737.5, -775, -1275, -925, -737.5},
+        {4, SERRE, 775, -1275, -550, -1500, 1000, -1050},
+        {5, SERRE, 0, 1275, -225, 150, 225, 1500},
+        {6, SERRE, 0, 1275, -225, 150, 225, 1500}
+    };
+
+    Zone zones_jaunes[6] = {
+        {1, JARDINIERE, 775, 1275, 550, 1050, 775, 1275},
+        {2, JARDINIERE, 550, 925, 775, 1275, 550, 925},
+        {3, JARDINIERE, 925, 737.5, 775, 1275, 925, 737.5},
+        {4, SERRE, -775, 1275, 550, 1500, -1000, 1050},
+        {5, SERRE, 0, -1275, 225, -150, -225, -1500},
+        {6, SERRE, 0, -1275, 225, -150, -225, -1500}
+    };
     
-    switch(this->id){
-        case 1:
-        this->y = -405;
-        this->zone.x_center = -775;
-        this->zone.y_center = -1275;
-        this->zone.x_1 = -1000;
-        this->zone.y_1 = -1500;
-        this->zone.x_2 = -550;
-        this->zone.y_2 = -1050; 
-        break;
-        case 2:
-        this->y = -315;
-        this->zone.x_center = -550;
-        this->zone.y_center = -925;
-        this->zone.x_1 = -775;
-        this->zone.y_1 = -1275; 
-        this->zone.x_2 = -775;
-        this->zone.y_2 = -1275; 
-        break;
-        case 3:
-        this->y = -225;
-        this->zone.x_center = -925;
-        this->zone.y_center = -737.5; 
-        this->zone.x_1 = -775;
-        this->zone.y_1 = -1275;
-        this->zone.x_2 = -775;
-        this->zone.y_2 = -1275; 
-        break;
-        case 4:
-        this->y = -135;
-        this->zone.x_center = 775;
-        this->zone.y_center = -1275; 
-        this->zone.x_1 = -550;
-        this->zone.y_1 = -1500; 
-        this->zone.x_2 = 1000;
-        this->zone.y_2 = -1050; 
-        break;
-        case 5:
-        this->y = -45;
-        this->zone.x_center = 0;
-        this->zone.y_center = 1275; 
-        this->zone.x_1 = -225;
-        this->zone.y_1 = 150; 
-        this->zone.x_2 = 225;
-        this->zone.y_2 = 1500; 
-        break;
+    switch(this->couleur){
+        case BLEU:
+            this->zone = zones_bleues[this->id];
+            break;
+        case JAUNE:
+            this->zone = zones_jaunes[this->id];
+            break;
     }
     this->nbStepsToDo=0;
     this->direction=STOP;

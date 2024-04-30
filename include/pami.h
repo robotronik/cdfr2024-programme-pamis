@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include "SPI.h"
 #include "math.h"
+#include "zone.h"
 
 //Pinout 
 #define LPN_PIN GPIO_NUM_26
@@ -37,28 +38,16 @@
 #define GMTOFFSET 3600
 #define DAYLOFFSET 3600
 
-//Définition des directions
+//Types énumérés
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
 enum State {IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
+enum Couleur {BLEU, JAUNE}; 
 
 //Commande moteurs
 typedef struct _instruction{
     Direction dir;
     int nbSteps;
 } Instruction;
-
-//Structure d'une zone
-typedef struct _zone{
-    int zone_id; //Le numéro de la zone
-    //Les deux points de la diagonale
-    float x_1;
-    float y_1; 
-    float x_2;
-    float y_2;
-    //Le centre de la zone
-    float x_center;
-    float y_center;
-} Zone;
 
 class Pami{
     public:
@@ -95,7 +84,10 @@ class Pami{
         //Utilities
         void printPos();    
 
-        int id; //N° du PAMI, 1-5
+        //N° du PAMI, 1-5
+        int id; 
+        Couleur couleur;
+
         Stepper moteur_gauche;
         Stepper moteur_droit;   
         VL53L7CX sensor;

@@ -135,6 +135,8 @@ void gestionShutdown(void *pvParameters){
     }
   }
 }
+
+//TODO: récupérer l'équipe jouée
 void ReceptionUDP(void *pvParameters){
   char packetBuffer[255];
   int packetSize = udp.parsePacket();
