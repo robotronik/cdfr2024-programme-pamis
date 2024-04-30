@@ -32,6 +32,7 @@
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
 
+
 //Caractéristiques connexion WiFi
 #define LOCALPORT 9999
 #define SERVERPORT 8888
