@@ -97,12 +97,12 @@ void gestionCapteur(void *pvParameters){
         
         zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
 
-        //Serial.println("Capteur");
+        Serial.println("Capteur");
         //Calul distance minimum
         for (j = 0; j < res; j += zones_per_line){
           for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
             for (k = (zones_per_line - 1); k >= 0; k--){
-
+                
               //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
               uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
               if (zoneStatus == 5 || zoneStatus == 9){
@@ -268,7 +268,7 @@ void setup()
   WiFiUDP udp;
   Serial.begin(115200);
 
-  pami.id = 2;
+  pami.id = 1;
   pami.init();
   
   
