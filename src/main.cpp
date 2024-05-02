@@ -4,7 +4,7 @@
 #include "pami.h"
 #include "soc/rtc_wdt.h"
 
-#define MATCH
+#define TEST_MVT
 
 // Components
 Pami pami;
@@ -289,7 +289,8 @@ void mouvement(void *pvParameters){
 
   pami.printPos();
 
-  pami.moveDist(FORWARDS, 100);
+  //pami.steerRad(RIGHT,M_PI);
+  pami.moveDist(FORWARDS,1000);
   pami.executeNextInstruction();
   pami.state = MOVING;
   for(;;){
@@ -305,8 +306,8 @@ void setup()
 {
   Serial.begin(115200);
 
-  pami.id = 5;
-  pami.couleur=BLEU;
+  pami.id = 1;
+  pami.couleur = JAUNE;
   pami.init();
   
   

@@ -8,13 +8,14 @@ typedef struct _zone{
     //Type de la zone
     Type type;
 
+    //Le centre de la zone
+    float x_center;
+    float y_center;
+    
     //Points de la diagonale
     float x_1;
     float y_1;
     float x_2;
     float y_2;
 
-    //Le centre de la zone
-    float x_center;
-    float y_center;
 } Zone;

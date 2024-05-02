@@ -156,8 +156,9 @@ void Pami::moveDist(Direction dir, int distance_mm){
 
 void Pami::steerRad(Direction dir, float Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
-    int nbSteps = Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
-    this->addInstruction(dir,  nbSteps);
+    //int nbSteps = Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
+    //this->addInstruction(dir,  nbSteps);
+    this->moveDist(dir,Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE);
 }
 
 void Pami::goToPos(int x_target, int y_target){

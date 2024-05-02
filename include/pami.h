@@ -27,7 +27,7 @@
 #define NB_MAX_INSTRUCTIONS 10
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 46 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 50 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 #define DIAMETRE_ROUE 78//mm
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
