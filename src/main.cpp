@@ -136,7 +136,7 @@ void gestionShutdown(void *pvParameters){
     }
   }
 }
-
+/*
 //TODO: récupérer l'équipe jouée
 void ReceptionUDP(void *pvParameters){
 	WiFiUDP udp;
@@ -202,7 +202,7 @@ void ReceptionUDP(void *pvParameters){
 			vTaskDelay(pdMS_TO_TICKS(100));
 	}
 }
-
+*/
 void strategie(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(10));
   Serial.println("Début Strat");
@@ -310,7 +310,7 @@ void setup()
   pami.init();
   
   
-  xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
+  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
   
   xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
