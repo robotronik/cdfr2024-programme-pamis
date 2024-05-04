@@ -87,9 +87,10 @@ class Pami{
         void setPos(int x, int y);
         void goToPos(int x, int y);
         bool inZone();
+        bool isMoving();
         void addInstruction(Direction dir, int nbSteps);
         void clearInstructions();
-        void executeNextInstruction();
+        void setNextInstruction();
         void connectToWiFi();
         void UDPBeginAndSynchro(WiFiUDP *udp);
         void SendUDPPacket(WiFiUDP *udp);
