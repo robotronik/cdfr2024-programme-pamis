@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include "pami.h"
 #include "soc/rtc_wdt.h"
+#include "AccelStepper.h"
 
 #define TEST_MVT
 
@@ -11,62 +12,22 @@ Pami pami;
 // Objects & Variables
 char packetBuffer[255];
 unsigned int localPort = 9999;
-char *serverip = "raspitronik.local";
+const char *serverip = "raspitronik.local";
 unsigned int serverport = 8888;
 const char *ssid = "Poulet";
 const char *password = "yolespotos2343";
 
-void gestionMoteurs(void *pvParameters)
-{
+void gestionMoteur(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(10));
+
   TickType_t xLastWakeTime;
+
   for(;;){
+    Serial.println("Gestion moteur");
     xLastWakeTime = xTaskGetTickCount();
-
-    if (pami.state == MOVING){
-      switch(pami.direction){
-        case FORWARDS:
-          pami.moteur_droit.setDirection(CW);
-          pami.moteur_gauche.setDirection(CW);
-          pami.x += (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-          pami.y += (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-          break;
-        
-        case BACKWARDS:
-          pami.moteur_droit.setDirection(CCW);
-          pami.moteur_gauche.setDirection(CCW);
-          pami.x -= (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-          pami.y -= (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-          break;
-
-        case LEFT:
-          pami.moteur_droit.setDirection(CCW);
-          pami.moteur_gauche.setDirection(CW);
-          pami.theta += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-          pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI;  
-          break;
-
-        case RIGHT:
-          pami.moteur_droit.setDirection(CW);
-          pami.moteur_gauche.setDirection(CCW);
-          pami.theta -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-          pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI; 
-          break;
-
-        case STOP:
-          break;
-      }
-
-      digitalWrite(RIGHT_STEP_PIN, HIGH);
-      digitalWrite(LEFT_STEP_PIN, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(2));
-
-      pami.nbStepsToDo--;
-
-      digitalWrite(RIGHT_STEP_PIN, LOW);	
-      digitalWrite(LEFT_STEP_PIN, LOW);
-      vTaskDelay(pdMS_TO_TICKS(2));
-    }
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
 }
 
@@ -211,6 +172,10 @@ void strategie(void *pvParameters){
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
+
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+
     switch(pami.state){
 
       case IDLE:
@@ -218,20 +183,20 @@ void strategie(void *pvParameters){
         if (!pami.inZone()){
           Serial.println("Idle");
           pami.moveDist(FORWARDS, 100);
-          pami.executeNextInstruction();
           pami.state = MOVING;
         }
         break;
 
       case MOVING:
         //Pami à l'arrêt  
-        if (pami.nbStepsToDo == 0){
+        if (!pami.isMoving()){
           pami.printPos();
           //Zone non atteinte
-          if (!pami.inZone()){
-            if (pami.nbInstructions != 0){
-              pami.executeNextInstruction();
+          if(!pami.inZone()){
+            if(pami.nbInstructions > 0){
+              pami.setNextInstruction();
               pami.state = MOVING;
+              Serial.println("Moving");
             }
             else{
               pami.state = GO_FOR_TARGET;
@@ -239,7 +204,7 @@ void strategie(void *pvParameters){
           }
 
           //Zone atteinte
-          else if (pami.inZone()) {
+          if (pami.inZone()) {
             Serial.println("Zone atteinte"); 
             pami.printPos();
             pami.clearInstructions();
@@ -248,7 +213,7 @@ void strategie(void *pvParameters){
         }
 
         //Pami en mouvement
-        else if (pami.nbStepsToDo != 0){
+        else if (pami.isMoving()){
           //Obstacle détecté
           if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
             pami.state = AVOID_OBSTACLE;
@@ -264,7 +229,6 @@ void strategie(void *pvParameters){
         Serial.print("Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
-        pami.executeNextInstruction();
         Serial.println("Moving");
         break;
 
@@ -278,9 +242,10 @@ void strategie(void *pvParameters){
         pami.state = MOVING;
         Serial.println("Moving");
         break;
+
     }
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
-  } 
+  }
 }
 
 void mouvement(void *pvParameters){
@@ -289,16 +254,13 @@ void mouvement(void *pvParameters){
 
   pami.printPos();
 
-  //pami.steerRad(RIGHT,M_PI);
-  pami.moveDist(FORWARDS,1000);
-  pami.executeNextInstruction();
+  pami.steerRad(RIGHT,M_PI);
+  pami.setNextInstruction();
   pami.state = MOVING;
   for(;;){
-    if (pami.nbStepsToDo == 0){
-      pami.printPos();
-      pami.state = IDLE;  
-    }
-    vTaskDelay(pdMS_TO_TICKS(5));
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+    vTaskDelay(1);
   }
 }
 
@@ -307,19 +269,18 @@ void setup()
   Serial.begin(115200);
 
   pami.id = 1;
-  pami.couleur = JAUNE;
+  pami.couleur = BLEU;
   pami.init();
   
   
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
-  
-  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
   #ifdef TEST_MVT
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
+  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
   #endif
   #ifdef MATCH
+  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
+  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
   #endif
 
@@ -327,7 +288,5 @@ void setup()
   Serial.println("Setup done");
 }
 
-void loop()
-{
-
-}
+void loop(){}
+  

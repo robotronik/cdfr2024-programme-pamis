@@ -1,10 +1,30 @@
 #include "pami.h"
 
-Pami::Pami() : moteur_droit(RIGHT_DIR_PIN, RIGHT_STEP_PIN, STEPS_PER_REV),
-               moteur_gauche(LEFT_DIR_PIN, LEFT_STEP_PIN, STEPS_PER_REV),
+Pami::Pami() : moteur_gauche(1, LEFT_STEP_PIN, LEFT_DIR_PIN),
+               moteur_droit(1, RIGHT_STEP_PIN, RIGHT_DIR_PIN),
                sensor(&Wire, LPN_PIN, I2C_RST_PIN){
 
 }
+
+ //6 zones par couleur
+Zone zones_bleues[6] = {
+    {1, SERRE, -775, -1275, -1000, -1500, -550, -1050},
+    {2, JARDINIERE, -550, -925, -775, -1275, -550, -925},
+    {3, JARDINIERE, -925, -737.5, -775, -1275, -925, -737.5},
+    {4, SERRE, 775, -1275, 550, -1500, 1000, -1050},
+    {5, JARDINIERE, 550, -925, 775, -1275, 550, -925},
+    {6, SERRE, 0, 1275, -225, 1500, 225, 1050} //zone non visée
+};
+
+Zone zones_jaunes[6] = {
+    {1, SERRE, -775, 1275, -1000, 1500, -550, 1050},
+    {2, JARDINIERE, -550, 925, -775, 1275, -550, 925},
+    {3, JARDINIERE, -925, 737.5, -775, 1275, -925, 737.5},
+    {4, SERRE, 775, 1275, 550, 1500, 1000, 1050},
+    {5, JARDINIERE, 0, -1275, -225, -150, 225, -1500},
+    {6, SERRE, 0, -1275, -225, -1500, 225, -1050}, //zone non visée
+};
+
 void Pami::init(){
     // Initialize I2C bus.
     Wire.begin();
@@ -30,6 +50,15 @@ void Pami::init(){
 
     pinMode(LED_BUILTIN, OUTPUT);
 
+    // Initialize motors
+    this->moteur_gauche.setAcceleration(ACCELERATION); 
+    this->moteur_gauche.setMaxSpeed(MAX_SPEED);
+    this->moteur_gauche.setSpeed(0);
+
+    this->moteur_droit.setAcceleration(ACCELERATION);
+    this->moteur_droit.setMaxSpeed(MAX_SPEED);
+    this->moteur_droit.setSpeed(0);
+
     //Read HW ID
     /*this->id = digitalRead(DS1_PIN)
             + digitalRead(DS2_PIN)*2
@@ -40,25 +69,6 @@ void Pami::init(){
     // and have the same orientation
     this->x = -925;
     this->theta = 0;
-
-    //6 zones par couleur
-    Zone zones_bleues[6] = {
-        {1, SERRE, -775, -1275, -1000, -1500, -550, -1050},
-        {2, JARDINIERE, -550, -925, -775, -1275, -550, -925},
-        {3, JARDINIERE, -925, -737.5, -775, -1275, -925, -737.5},
-        {4, SERRE, 775, -1275, 550, -1500, 1000, -1050},
-        {5, JARDINIERE, 550, -925, 775, -1275, 550, -925},
-        {6, SERRE, 0, 1275, -225, 1500, 225, 1050} //zone non visée
-    };
-
-    Zone zones_jaunes[6] = {
-        {1, SERRE, -775, 1275, -1000, 1500, -550, 1050},
-        {2, JARDINIERE, -550, 925, -775, 1275, -550, 925},
-        {3, JARDINIERE, -925, 737.5, -775, 1275, -925, 737.5},
-        {4, SERRE, 775, 1275, 550, 1500, 1000, 1050},
-        {5, JARDINIERE, 0, -1275, -225, -150, 225, -1500},
-        {6, SERRE, 0, -1275, -225, -1500, 225, -1050}, //zone non visée
-    };
     
     switch(this->couleur){
         case BLEU:
@@ -156,8 +166,6 @@ void Pami::moveDist(Direction dir, int distance_mm){
 
 void Pami::steerRad(Direction dir, float Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
-    //int nbSteps = Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE);
-    //this->addInstruction(dir,  nbSteps);
     this->moveDist(dir,Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE);
 }
 
@@ -203,6 +211,8 @@ bool Pami::inZone(){
 /**********************
  * Instructions moteurs
 ***********************/
+
+//Add instruction to the list of instructions
 void Pami::addInstruction(Direction dir, int nbSteps){
     if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
         this->listInstruction[this->nbInstructions].dir = dir;
@@ -215,6 +225,7 @@ void Pami::addInstruction(Direction dir, int nbSteps){
     }
 }
 
+//Clear the list of instructions
 void Pami::clearInstructions(){
     this->nbInstructions = 0;
     for (int i=0; i<NB_MAX_INSTRUCTIONS; i++){
@@ -224,21 +235,53 @@ void Pami::clearInstructions(){
     Serial.println("Instructions cleared");
 }
 
-void Pami::executeNextInstruction(){
+//Translate next instruction into stepper commands via AccelStepper API
+void Pami::setNextInstruction(){
     if (this->nbInstructions >= 0){
-        this->direction = this->listInstruction[0].dir;
-        this->nbStepsToDo = this->listInstruction[0].nbSteps;
+        Instruction nextInstruction = this->listInstruction[0];
+        switch(nextInstruction.dir){
+            case FORWARDS:
+                this->moteur_gauche.move(nextInstruction.nbSteps);
+                this->moteur_droit.move(nextInstruction.nbSteps);
+                break;
+            case BACKWARDS:
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_droit.move(-nextInstruction.nbSteps);
+                break;
+            case LEFT:
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_droit.move(nextInstruction.nbSteps);
+                break;
+            case RIGHT:
+                this->moteur_gauche.move(nextInstruction.nbSteps);
+                this->moteur_droit.move(-nextInstruction.nbSteps);
+                break;
+            case STOP:
+                this->moteur_gauche.stop();
+                this->moteur_droit.stop();
+                break;
+        }
 
         for (int i=0; i<this->nbInstructions; i++){
             this->listInstruction[i] = this->listInstruction[i+1];
         }
+
         this->nbInstructions--;
         Serial.print("Executing instruction: ");
-        Serial.print(this->direction);
+        Serial.print(nextInstruction.dir);
         Serial.print(" ");
-        Serial.println(this->nbStepsToDo);
+        Serial.println(nextInstruction.nbSteps);
     }
 }
+
+
+bool Pami::isMoving(){
+    return (this->moteur_gauche.distanceToGo() != 0 || this->moteur_droit.distanceToGo() != 0);
+}
+
+/**********
+ * WiFi
+ * ********/
 
 void Pami::connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp){
     WiFi.mode(WIFI_STA); 

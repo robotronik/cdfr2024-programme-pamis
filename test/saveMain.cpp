@@ -3,68 +3,31 @@
 #include <Wire.h>
 #include "pami.h"
 #include "soc/rtc_wdt.h"
+#include "AccelStepper.h"
 
-#define MATCH
+#define TEST_MVT
 
 // Components
 Pami pami;
 // Objects & Variables
-WiFiUDP udp;
-struct tm timeinfo;
-const char * ssid="*****";
-const char * password="****";
-const char * server_ip="****";
+char packetBuffer[255];
+unsigned int localPort = 9999;
+const char *serverip = "raspitronik.local";
+unsigned int serverport = 8888;
+const char *ssid = "Poulet";
+const char *password = "yolespotos2343";
 
-void gestionMoteurs(void *pvParameters)
-{
+void gestionMoteur(void *pvParameters){
+  vTaskDelay(pdMS_TO_TICKS(10));
+
   TickType_t xLastWakeTime;
+
   for(;;){
+    Serial.println("Gestion moteur");
     xLastWakeTime = xTaskGetTickCount();
-	  switch(pami.direction){
-      case FORWARDS:
-        pami.moteur_droit.setDirection(CW);
-        pami.moteur_gauche.setDirection(CW);
-        pami.x += (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y += (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        break;
-      
-      case BACKWARDS:
-        pami.moteur_droit.setDirection(CCW);
-        pami.moteur_gauche.setDirection(CCW);
-        pami.x -= (cos(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        pami.y -= (sin(pami.theta) * DIAMETRE_ROUE*M_PI/STEPS_PER_REV);
-        break;
-
-      case LEFT:
-        pami.moteur_droit.setDirection(CCW);
-        pami.moteur_gauche.setDirection(CW);
-        pami.theta += (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI;  
-        break;
-
-      case RIGHT:
-        pami.moteur_droit.setDirection(CW);
-        pami.moteur_gauche.setDirection(CCW);
-        pami.theta -= (DIAMETRE_ROUE*M_PI/STEPS_PER_REV) / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        pami.theta = fmod(pami.theta + M_PI, 2 * M_PI) - M_PI; 
-        break;
-
-      case STOP:
-        break;
-	  }
-
-    if (pami.state == MOVING){
-      digitalWrite(RIGHT_STEP_PIN, HIGH);
-      digitalWrite(LEFT_STEP_PIN, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(2));
-
-      pami.nbStepsToDo--;
-
-      digitalWrite(RIGHT_STEP_PIN, LOW);	
-      digitalWrite(LEFT_STEP_PIN, LOW);
-      vTaskDelay(pdMS_TO_TICKS(2));
-    }
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
 }
 
@@ -101,7 +64,7 @@ void gestionCapteur(void *pvParameters){
         for (j = 0; j < res; j += zones_per_line){
           for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
             for (k = (zones_per_line - 1); k >= 0; k--){
-
+                
               //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
               uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
               if (zoneStatus == 5 || zoneStatus == 9){
@@ -134,36 +97,73 @@ void gestionShutdown(void *pvParameters){
     }
   }
 }
+/*
+//TODO: récupérer l'équipe jouée
 void ReceptionUDP(void *pvParameters){
-  char packetBuffer[255];
-  int packetSize = udp.parsePacket();
- 	if (packetSize) {
-      struct tm timeinfo;
- 			Serial.print(" Received packet from : "); Serial.println(udp.remoteIP());
- 			int len = udp.read(packetBuffer, 255);
-      time_t start_time=atoi(packetBuffer);
- 			Serial.printf("Data : %s\n", packetBuffer);
- 			Serial.println();
-      struct tm *start_time_struct=localtime(&start_time);
-      Serial.println(start_time_struct, "%A, %B %d %Y %H:%M:%S");
-      Serial.println();
-      if(start_time<=mktime(&timeinfo)){
-        // DEMARRAGE DU PAMI!!!!
-      }
- 	}
- 	delay(100);
- 	Serial.print("[Client Connected] "); Serial.println(WiFi.localIP());
-  pami.printLocalTime(&timeinfo);
-  /*
- 	udp.beginPacket(server_ip, SERVERPORT);
- 	char buf[30];
- 	unsigned long testID = millis();
- 	sprintf(buf, "ESP32 send millis: %lu", testID);
- 	udp.printf(buf);
- 	udp.endPacket();
-  */
+	WiFiUDP udp;
+	time_t start_time;
+	time_t now;
+	
+	char packetBuffer[255];
+  	for(;;){
+		time(&now);
+		int packetSize = udp.parsePacket();
+		switch(pami.state){
+			case START:
+			//if démarrage du WiFi
+				// Connect to Wifi network.
+ 				WiFi.begin(ssid, password);
+ 				while (WiFi.status() != WL_CONNECTED) {
+ 					delay(500); Serial.print(F("."));
+ 				}
+ 				udp.begin(LOCALPORT);
+ 				Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
+  				//init and get the time
+  				configTime(GMTOFFSET, DAYLOFFSET, serverip);
+				pami.state=WAIT_INFO;
+				break;
+			case WAIT_INFO:
+					if (packetSize) {
+							Serial.print(" Received packet from : "); Serial.println(udp.remoteIP());
+							int len = udp.read(packetBuffer, 255);
+							Serial.printf("Data : %s\n", packetBuffer);
+							Serial.println();
+							const char delim = ':';
+							char * token =strtok(packetBuffer,&delim);
+							start_time=atoi(token);
+							char * token2 =strtok(packetBuffer,&delim);
+							char item=token2[0];
+							int team=atoi(&item);
+							switch(team){
+								case 0:
+									pami.couleur=BLEU;
+									break;
+								case 1:
+									pami.couleur=JAUNE;
+									break;
+							}
+							pami.state=WAIT_IDLE;
+					}
+				break;
+				case WAIT_IDLE:
+				Serial.printf(" WAIT FOR IDLE %d,%d",start_time,now);
+				if(start_time<=now){
+					
+					pami.state=IDLE;
+				}
+			break;
+		}
+			//Serial.print("[Client Connected] "); Serial.println(WiFi.localIP());
+			udp.beginPacket(serverip, SERVERPORT);
+			char buf[30];
+			unsigned long testID = millis();
+			sprintf(buf, "ESP32 send millis: %lu", testID);
+			udp.printf(buf);
+			udp.endPacket();
+			vTaskDelay(pdMS_TO_TICKS(100));
+	}
 }
-
+*/
 void strategie(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(10));
   Serial.println("Début Strat");
@@ -172,26 +172,31 @@ void strategie(void *pvParameters){
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
+
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+
     switch(pami.state){
 
       case IDLE:
-        Serial.println("Idle");
       //if signal top départ
-        if (!pami.inZone())
+        if (!pami.inZone()){
+          Serial.println("Idle");
           pami.moveDist(FORWARDS, 100);
-          pami.executeNextInstruction();
           pami.state = MOVING;
+        }
         break;
 
       case MOVING:
         //Pami à l'arrêt  
-        if (pami.nbStepsToDo == 0){
+        if (!pami.isMoving()){
           pami.printPos();
           //Zone non atteinte
-          if (!pami.inZone()){
-            if (pami.nbInstructions != 0){
-              pami.executeNextInstruction();
+          if(!pami.inZone()){
+            if(pami.nbInstructions > 0){
+              pami.setNextInstruction();
               pami.state = MOVING;
+              Serial.println("Moving");
             }
             else{
               pami.state = GO_FOR_TARGET;
@@ -199,7 +204,7 @@ void strategie(void *pvParameters){
           }
 
           //Zone atteinte
-          else {
+          if (pami.inZone()) {
             Serial.println("Zone atteinte"); 
             pami.printPos();
             pami.clearInstructions();
@@ -208,7 +213,7 @@ void strategie(void *pvParameters){
         }
 
         //Pami en mouvement
-        else if (pami.nbStepsToDo != 0){
+        else if (pami.isMoving()){
           //Obstacle détecté
           if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
             pami.state = AVOID_OBSTACLE;
@@ -224,7 +229,6 @@ void strategie(void *pvParameters){
         Serial.print("Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
-        pami.executeNextInstruction();
         Serial.println("Moving");
         break;
 
@@ -238,9 +242,10 @@ void strategie(void *pvParameters){
         pami.state = MOVING;
         Serial.println("Moving");
         break;
+
     }
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
-  } 
+  }
 }
 
 void mouvement(void *pvParameters){
@@ -249,44 +254,44 @@ void mouvement(void *pvParameters){
 
   pami.printPos();
 
-  pami.moveDist(FORWARDS, 100);
-  pami.executeNextInstruction();
+  //pami.steerRad(RIGHT,M_PI);
+  float dist = -500;
   pami.state = MOVING;
   for(;;){
-    if (pami.nbStepsToDo == 0){
-      pami.printPos();
-      pami.state = IDLE;  
+    pami.moteur_gauche.run();
+    pami.moteur_droit.run();
+    if (!pami.isMoving()){
+      Serial.println("Done");
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      pami.moveDist(BACKWARDS,dist);
+      pami.setNextInstruction();
     }
-    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
 void setup()
 {
-  WiFiUDP udp;
   Serial.begin(115200);
 
   pami.id = 1;
+  pami.couleur = BLEU;
   pami.init();
   
   
-  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES-1,NULL,0);
+  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
-  
-  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
   #ifdef TEST_MVT
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
+  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
   #endif
   #ifdef MATCH
+  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
+  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
   #endif
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Setup done");
-  for(;;);
 }
 
-void loop()
-{
-}
+void loop(){}
+  

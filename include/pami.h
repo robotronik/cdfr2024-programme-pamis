@@ -8,6 +8,7 @@
 #include "SPI.h"
 #include "math.h"
 #include "zone.h"
+#include "AccelStepper.h"
 
 //Pinout 
 #define LPN_PIN GPIO_NUM_26
@@ -27,11 +28,16 @@
 #define NB_MAX_INSTRUCTIONS 10
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 50 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 42 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 #define DIAMETRE_ROUE 78//mm
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
 
+//Caractéristiques moteurs
+#define STEPS_PER_REV 200
+#define MAX_SPEED 500 //steps/s
+#define ACCELERATION 500 //steps/s^2
+#define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
 
 //Caractéristiques connexion WiFi
 #define LOCALPORT 9999
@@ -47,7 +53,7 @@ enum Couleur {BLEU, JAUNE};
 //Commande moteurs
 typedef struct _instruction{
     Direction dir;
-    int nbSteps;
+    long nbSteps;
 } Instruction;
 
 class Pami{
@@ -65,6 +71,8 @@ class Pami{
         */
         void sendData(char * data, uint8_t length);
         char * readData(uint8_t length);
+        void connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp);
+        void printLocalTime(struct tm* timeinfo);
 
         //Capteur ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
@@ -77,9 +85,8 @@ class Pami{
         bool inZone();
         void addInstruction(Direction dir, int nbSteps);
         void clearInstructions();
-        void executeNextInstruction();
-        void connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp);
-        void printLocalTime(struct tm* timeinfo);
+        void setNextInstruction();
+        bool isMoving();
 
 
         //Utilities
@@ -89,8 +96,10 @@ class Pami{
         int id; 
         Couleur couleur;
 
-        Stepper moteur_gauche;
-        Stepper moteur_droit;   
+        AccelStepper moteur_gauche = (1, LEFT_STEP_PIN, LEFT_DIR_PIN);
+        AccelStepper moteur_droit = (1, RIGHT_STEP_PIN, RIGHT_DIR_PIN);   
+
+
         VL53L7CX sensor;
 
         Direction direction = FORWARDS;
