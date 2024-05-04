@@ -1,6 +1,7 @@
 #ifndef PAMI_H
 #define PAMI_H
-
+#include <stdio.h>
+#include <stdlib.h>
 #include "stepper.h"
 #include "datmo.h"
 #include "vl53l7cx_class.h"
@@ -40,6 +41,9 @@
 #define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
 
 //Caractéristiques connexion WiFi
+#define SSID "Poulet"
+#define PASSWORD "yolespotos2343"
+#define SERVERIP "raspitronik.local"
 #define LOCALPORT 9999
 #define SERVERPORT 8888
 #define GMTOFFSET 3600
@@ -47,7 +51,7 @@
 
 //Types énumérés
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
-enum State {IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
+enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING};
 enum Couleur {BLEU, JAUNE}; 
 
 //Commande moteurs
@@ -85,8 +89,12 @@ class Pami{
         bool inZone();
         void addInstruction(Direction dir, int nbSteps);
         void clearInstructions();
-        void setNextInstruction();
-        bool isMoving();
+        void executeNextInstruction();
+        void connectToWiFi();
+        void UDPBeginAndSynchro(WiFiUDP *udp);
+        void SendUDPPacket(WiFiUDP *udp);
+        int ReadPacket(WiFiUDP *udp, char* buf);
+        void printLocalTime(struct tm* timeinfo);
 
 
         //Utilities

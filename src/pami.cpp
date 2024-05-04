@@ -97,7 +97,7 @@ void Pami::init(){
     }
     this->nbStepsToDo=0;
     this->direction=STOP;
-    this->state = IDLE; 
+    this->state = START;
 }
 
 void Pami::shutdown(){
@@ -112,30 +112,6 @@ void Pami::shutdown(){
     // Shutdown SPI bus.
     SPI.end();
 }
-
-//Communication
-/*
-WiFiClient Pami::initWiFi(const char* ssid, const char* password){
-    WiFi.mode(WIFI_STA); //Optional
-    WiFi.begin(ssid, password);
-    Serial.println("\nConnecting");
-
-    while(WiFi.status() != WL_CONNECTED){
-        Serial.print(".");
-        delay(100);
-    }
-
-    char* msg;
-    sprintf(msg, "Connected to %s with IP: ", WiFi.SSID());
-    Serial.print(msg);
-    Serial.println(WiFi.localIP());
-
-    WiFiClient client;
-    client.localIP() = WiFi.localIP();
-    client.remoteIP();
-    return client;
-}
-*/
 
 /***********
 *Capteur ToF
@@ -282,22 +258,59 @@ bool Pami::isMoving(){
 /**********
  * WiFi
  * ********/
-
-void Pami::connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp){
+/**********************
+ * Fonctions connectivité
+***********************/
+void Pami::connectToWiFi(){
     WiFi.mode(WIFI_STA); 
-    WiFi.begin(ssid, password);
+    WiFi.begin(SSID,PASSWORD);
     Serial.println("\nConnecting");
     while(WiFi.status() != WL_CONNECTED){
         Serial.print(".");
         delay(100);
     }
+    
     Serial.print("\nConnected with IP adress: ");
     Serial.println(WiFi.localIP());
-    udp.begin(LOCALPORT);
- 	Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
-    configTime(GMTOFFSET, DAYLOFFSET, serverip);
-}
 
+}
+void Pami::UDPBeginAndSynchro(WiFiUDP *udp){
+    char buf[30];
+    (*udp).begin(LOCALPORT);
+    Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
+    
+    Serial.print("Synchronizing...");
+    while(time(nullptr) <= 100000){
+        configTime(GMTOFFSET, DAYLOFFSET, SERVERIP);
+        delay(4000);
+    }
+    Serial.println();
+    Serial.printf("Synchronized with : %s \n", SERVERIP);
+}
+void Pami::SendUDPPacket(WiFiUDP* udp){
+    char buf[20];
+    (*udp).beginPacket(SERVERIP, SERVERPORT);
+    sprintf(buf, "ESP32 send millis");
+    (*udp).printf(buf);
+    (*udp).endPacket();
+}  
+int Pami::ReadPacket(WiFiUDP* udp, char* packetBuffer){
+    Serial.print(" Received packet from : "); Serial.println((*udp).remoteIP());
+    int len = (*udp).read(packetBuffer, 12);
+    if(len!=12){
+        Serial.println("Packet not received correctly");
+        return -1;
+    }
+    else{
+        packetBuffer[len] = '\0'; // Ensure null-termination
+        Serial.printf("Data : %s\n", packetBuffer);
+        Serial.println();
+        return 1;
+    }
+}
+/**********************
+ * Fonctions affichage
+***********************/
 void Pami::printPos(){
     Serial.print("x = "); Serial.print(this->x); Serial.print(" mm ");
     Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
