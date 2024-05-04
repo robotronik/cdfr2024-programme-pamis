@@ -4,22 +4,20 @@
 #include "pami.h"
 #include "soc/rtc_wdt.h"
 
-#define TEST_MVT
+#define MATCH
 
 // Components
 Pami pami;
 // Objects & Variables
-char packetBuffer[255];
-unsigned int localPort = 9999;
-char *serverip = "raspitronik.local";
-unsigned int serverport = 8888;
-const char *ssid = "Poulet";
-const char *password = "yolespotos2343";
+WiFiUDP udp;
+
+
 
 void gestionMoteurs(void *pvParameters)
 {
   TickType_t xLastWakeTime;
   for(;;){
+    //Serial.println("Moteur");
     xLastWakeTime = xTaskGetTickCount();
 
     if (pami.state == MOVING){
@@ -84,6 +82,7 @@ void gestionCapteur(void *pvParameters){
   TickType_t xLastWakeTime;
 
   for(;;){
+    //Serial.println("Capteur");
     xLastWakeTime = xTaskGetTickCount();
 
     if (pami.state != IDLE){
@@ -136,83 +135,60 @@ void gestionShutdown(void *pvParameters){
     }
   }
 }
-/*
-//TODO: récupérer l'équipe jouée
-void ReceptionUDP(void *pvParameters){
-	WiFiUDP udp;
-	time_t start_time;
-	time_t now;
-	
-	char packetBuffer[255];
-  	for(;;){
-		time(&now);
-		int packetSize = udp.parsePacket();
-		switch(pami.state){
-			case START:
-			//if démarrage du WiFi
-				// Connect to Wifi network.
- 				WiFi.begin(ssid, password);
- 				while (WiFi.status() != WL_CONNECTED) {
- 					delay(500); Serial.print(F("."));
- 				}
- 				udp.begin(LOCALPORT);
- 				Serial.printf("UDP Client : %s:%i \n", WiFi.localIP().toString().c_str(), LOCALPORT);
-  				//init and get the time
-  				configTime(GMTOFFSET, DAYLOFFSET, serverip);
-				pami.state=WAIT_INFO;
-				break;
-			case WAIT_INFO:
-					if (packetSize) {
-							Serial.print(" Received packet from : "); Serial.println(udp.remoteIP());
-							int len = udp.read(packetBuffer, 255);
-							Serial.printf("Data : %s\n", packetBuffer);
-							Serial.println();
-							const char delim = ':';
-							char * token =strtok(packetBuffer,&delim);
-							start_time=atoi(token);
-							char * token2 =strtok(packetBuffer,&delim);
-							char item=token2[0];
-							int team=atoi(&item);
-							switch(team){
-								case 0:
-									pami.couleur=BLEU;
-									break;
-								case 1:
-									pami.couleur=JAUNE;
-									break;
-							}
-							pami.state=WAIT_IDLE;
-					}
-				break;
-				case WAIT_IDLE:
-				Serial.printf(" WAIT FOR IDLE %d,%d",start_time,now);
-				if(start_time<=now){
-					
-					pami.state=IDLE;
-				}
-			break;
-		}
-			//Serial.print("[Client Connected] "); Serial.println(WiFi.localIP());
-			udp.beginPacket(serverip, SERVERPORT);
-			char buf[30];
-			unsigned long testID = millis();
-			sprintf(buf, "ESP32 send millis: %lu", testID);
-			udp.printf(buf);
-			udp.endPacket();
-			vTaskDelay(pdMS_TO_TICKS(100));
-	}
-}
-*/
+
 void strategie(void *pvParameters){
-  vTaskDelay(pdMS_TO_TICKS(10));
-  Serial.println("Début Strat");
-
+  //Task parameters
+  vTaskDelay(pdMS_TO_TICKS(5));
   TickType_t xLastWakeTime;
-
+  //Connection variables
+  unsigned long testID;
+  time_t start_time;
+  time_t now;
+  int packetSize;
+  char packetBuffer[255];
   for(;;){
+    time(&now);
     xLastWakeTime = xTaskGetTickCount();
     switch(pami.state){
-
+      case START:
+        Serial.println("Pami.state=START");
+        pami.connectToWiFi();
+        pami.UDPBeginAndSynchro(&udp);
+        pami.state=WAIT_INFO;
+        Serial.println();
+      case WAIT_INFO:
+        Serial.printf("Pami.state=WAIT_INFO \r");
+        pami.SendUDPPacket(&udp);
+        packetSize = udp.parsePacket();
+        if(packetSize){
+          if(pami.ReadPacket(&udp,packetBuffer)!=1){
+            break;
+          }
+          else{
+            const char delim = ':';
+            char * token =strtok(packetBuffer,&delim);
+            token[10]='\0';
+            if (token != NULL) {
+            start_time = (time_t)atoi(token);
+            token =strtok(NULL,&delim); // Get the next token
+            if (token != NULL) {
+                char item=token[0];
+                pami.couleur=(Couleur)atoi(&item);
+                Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
+                Serial.println();
+            }
+            }
+          pami.state=WAIT_IDLE;
+          }
+        }
+        break;
+      case WAIT_IDLE:
+        Serial.printf(" Start time: %d, current time:%d \r",start_time,now);
+        if(start_time<=now){
+          Serial.println();
+          pami.state=IDLE;
+        }
+        break;
       case IDLE:
       //if signal top départ
         if (!pami.inZone()){
@@ -310,21 +286,16 @@ void setup()
   pami.couleur = JAUNE;
   pami.init();
   
-  
-  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
-
-  
-  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
+  Serial.println("Setup done");
+  xTaskCreatePinnedToCore(gestionMoteurs, "Gestion Moteurs", 100000, NULL,  configMAX_PRIORITIES, NULL, 0);
+  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL, 0);
   #ifdef TEST_MVT
   xTaskCreatePinnedToCore(mouvement, "Mouvement", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
   #endif
   #ifdef MATCH
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
+  xTaskCreatePinnedToCore(strategie, "Stratégie", 10000, NULL, configMAX_PRIORITIES, NULL, 1);
   #endif
-
   digitalWrite(LED_BUILTIN, LOW);
-  Serial.println("Setup done");
 }
 
 void loop()
