@@ -20,7 +20,7 @@ void gestionMoteur(void *pvParameters){
   TickType_t xLastWakeTime;
 
   for(;;){
-    Serial.println("Gestion moteur");
+    //Serial.println("Gestion moteur");
     xLastWakeTime = xTaskGetTickCount();
     pami.moteur_gauche.run();
     pami.moteur_droit.run();
@@ -225,7 +225,13 @@ void mouvement(void *pvParameters){
 
   pami.printPos();
 
-  pami.steerRad(RIGHT,M_PI);
+  #ifdef TEST_LINEAR
+  pami.moveDist(FORWARDS, 430);
+  #endif
+  #ifdef TEST_ANGULAR
+  pami.steerRad(RIGHT, M_PI);
+  #endif
+
   pami.setNextInstruction();
   pami.state = MOVING;
   for(;;){
@@ -246,7 +252,10 @@ void setup()
   
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
-  #ifdef TEST_MVT
+  #ifdef TEST_LINEAR
+  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
+  #endif
+  #ifdef TEST_ANGULAR
   xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
   #endif
   #ifdef MATCH

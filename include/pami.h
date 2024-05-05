@@ -29,7 +29,7 @@
 #define NB_MAX_INSTRUCTIONS 10
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 42 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 36 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
 #define DIAMETRE_ROUE 78//mm
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
@@ -41,8 +41,8 @@
 #define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
 
 //Caractéristiques connexion WiFi
-#define SSID "Poulet"
-#define PASSWORD "yolespotos2343"
+#define SSID "SuperRoutotronik"
+#define PASSWORD "J2MRNCKAWP"
 #define SERVERIP "raspitronik.local"
 #define LOCALPORT 9999
 #define SERVERPORT 8888
@@ -76,7 +76,6 @@ class Pami{
         void sendData(char * data, uint8_t length);
         char * readData(uint8_t length);
         void connectToWiFi(const char* ssid,const char* password,const char* serverip,WiFiUDP udp);
-        void printLocalTime(struct tm* timeinfo);
 
         //Capteur ToF
         void getSensorData(VL53L7CX_ResultsData *Results);

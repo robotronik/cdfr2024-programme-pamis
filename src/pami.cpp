@@ -225,12 +225,12 @@ void Pami::setNextInstruction(){
                 this->moteur_droit.move(-nextInstruction.nbSteps);
                 break;
             case LEFT:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
-                this->moteur_droit.move(nextInstruction.nbSteps);
-                break;
-            case RIGHT:
                 this->moteur_gauche.move(nextInstruction.nbSteps);
                 this->moteur_droit.move(-nextInstruction.nbSteps);
+                break;
+            case RIGHT:
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_droit.move(nextInstruction.nbSteps);
                 break;
             case STOP:
                 this->moteur_gauche.stop();
