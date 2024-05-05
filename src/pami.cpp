@@ -97,7 +97,7 @@ void Pami::init(){
     }
     this->nbStepsToDo=0;
     this->direction=STOP;
-    this->state = START;
+    this->state = IDLE;
 }
 
 void Pami::shutdown(){

@@ -110,14 +110,16 @@ void strategie(void *pvParameters){
     time(&now);
     xLastWakeTime = xTaskGetTickCount();
     switch(pami.state){
+
       case START:
         Serial.println("Pami.state=START");
         pami.connectToWiFi();
         pami.UDPBeginAndSynchro(&udp);
         pami.state=WAIT_INFO;
         Serial.println();
+
       case WAIT_INFO:
-        Serial.printf("Pami.state=WAIT_INFO \r");
+        //Serial.printf("Pami.state=WAIT_INFO \r");
         pami.SendUDPPacket(&udp);
         packetSize = udp.parsePacket();
         if(packetSize){
@@ -142,6 +144,7 @@ void strategie(void *pvParameters){
           }
         }
         break;
+
       case WAIT_IDLE:
         Serial.printf(" Start time: %d, current time:%d \r",start_time,now);
         if(start_time<=now){
@@ -149,6 +152,7 @@ void strategie(void *pvParameters){
           pami.state=IDLE;
         }
         break;
+        
       case IDLE:
       //if signal top départ
         if (!pami.inZone()){
