@@ -8,20 +8,20 @@ Pami::Pami() : moteur_gauche(1, LEFT_STEP_PIN, LEFT_DIR_PIN),
 
  //6 zones par couleur
 Zone zones_bleues[6] = {
-    {1, SERRE, -775, -1275, -1000, -1500, -550, -1050},
-    {2, JARDINIERE, -550, -925, -775, -1275, -550, -925},
-    {3, JARDINIERE, -925, -737.5, -775, -1275, -925, -737.5},
-    {4, SERRE, 775, -1275, 550, -1500, 1000, -1050},
-    {5, JARDINIERE, 550, -925, 775, -1275, 550, -925},
+    {1, SERRE, -775, -1275, -1000, -1500, -550, -1050}, //ok
+    {2, JARDINIERE, -387.5, -1275, -550, -1050, -225, -1500},  //ok
+    {3, JARDINIERE, -900, -737.5, -1000, -575, -800, -900}, //ok
+    {4, SERRE, 775, -1275, 550, -1500, 1000, -1050},  //ok
+    {5, JARDINIERE,  387.5, -1275, 550, -1050, 225, -1500}, //ok
     {6, SERRE, 0, 1275, -225, 1500, 225, 1050} //zone non visée
 };
 
 Zone zones_jaunes[6] = {
-    {1, SERRE, -775, 1275, -1000, 1500, -550, 1050},
-    {2, JARDINIERE, -550, 925, -775, 1275, -550, 925},
-    {3, JARDINIERE, -925, 737.5, -775, 1275, -925, 737.5},
-    {4, SERRE, 775, 1275, 550, 1500, 1000, 1050},
-    {5, JARDINIERE, 0, -1275, -225, -150, 225, -1500},
+    {1, SERRE, -775, 1275, -1000, 1500, -550, 1050},  //ok
+    {2, JARDINIERE, -387.5, 1275, -550, 1050, -225, 1500},  //ok
+    {3, JARDINIERE, -900, 737.5, -1000, 575, -800, 900}, //ok
+    {4, SERRE, 775, 1275, 550, 1500, 1000, 1050},  //ok
+    {5, JARDINIERE, 387.5, 1275, 550, 1050, 225, 1500},  //ok
     {6, SERRE, 0, -1275, -225, -1500, 225, -1050}, //zone non visée
 };
 
@@ -92,7 +92,24 @@ void Pami::init(){
             }
             break;
         case JAUNE:
-            this->zone = zones_jaunes[this->id];
+            this->zone = zones_jaunes[this->id-1];
+            switch(this->id){
+                case 1: 
+                    this->y = 405;
+                    break;
+                case 2: 
+                    this->y = 315;
+                    break;
+                case 3: 
+                    this->y = 225;
+                    break;
+                case 4: 
+                    this->y = 135;
+                    break;
+                case 5: 
+                    this->y = 45;
+                    break;
+            }
             break;
     }
     this->nbStepsToDo=0;
@@ -156,21 +173,20 @@ void Pami::goToPos(int x_target, int y_target){
     // Normalisation de l'angle entre -pi et pi
     Dtheta = fmodf(Dtheta + M_PI, 2 * M_PI) - M_PI;
 
-    Serial.print("Dx = "); Serial.print(Dx); Serial.print(" mm ");
+    Serial.print("\tDx = "); Serial.print(Dx); Serial.print(" mm ");
     Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
-    Serial.print("theta_target = "); Serial.print(Dtheta); Serial.println(" rad");
+    Serial.print("Dtheta = "); Serial.print(Dtheta); Serial.println(" rad");
 
     if (Dtheta != 0) {
         if (Dtheta > 0) {
-            this->direction = LEFT;
+            this->steerRad(LEFT, abs(Dtheta));
         } else {
-            this->direction = RIGHT;
+            this->steerRad(RIGHT, abs(Dtheta));
         }
-        this->steerRad(this->direction, abs(Dtheta));
+        
     }
     
     this->moveDist(FORWARDS, distance);
-    
 }
 
 void Pami::setPos(int x, int y){
@@ -180,7 +196,7 @@ void Pami::setPos(int x, int y){
 
 bool Pami::inZone(){
     bool x_in_zone = (this->x >= this->zone.x_1 && this->x <= this->zone.x_2);
-    bool y_in_zone = (this->y >= this->zone.y_1 && this->y <= this->zone.y_2);  
+    bool y_in_zone = (this->y >= this->zone.y_2 && this->y <= this->zone.y_1);  
     return (x_in_zone && y_in_zone);
 }
 
@@ -193,7 +209,7 @@ void Pami::addInstruction(Direction dir, int nbSteps){
     if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
         this->listInstruction[this->nbInstructions].dir = dir;
         this->listInstruction[this->nbInstructions].nbSteps = nbSteps;
-        Serial.print("Instruction added: ");
+        Serial.print("\tInstruction added: ");
         Serial.print(this->listInstruction[this->nbInstructions].dir);
         Serial.print(" ");
         Serial.println(this->listInstruction[this->nbInstructions].nbSteps);
@@ -208,13 +224,19 @@ void Pami::clearInstructions(){
         this->listInstruction[i].dir = STOP;
         this->listInstruction[i].nbSteps = 0;
     }
-    Serial.println("Instructions cleared");
+    Serial.println("\tInstructions cleared");
 }
 
 //Translate next instruction into stepper commands via AccelStepper API
 void Pami::setNextInstruction(){
+    this->moteur_droit.setCurrentPosition(this->moteur_droit.currentPosition());
+    this->moteur_gauche.setCurrentPosition(this->moteur_gauche.currentPosition());
+    this->x_last = this->x;
+    this->y_last = this->y;
+    this->theta_last = this->theta; 
     if (this->nbInstructions >= 0){
         Instruction nextInstruction = this->listInstruction[0];
+        this->direction = nextInstruction.dir;
         switch(nextInstruction.dir){
             case FORWARDS:
                 this->moteur_gauche.move(nextInstruction.nbSteps);
@@ -243,7 +265,7 @@ void Pami::setNextInstruction(){
         }
 
         this->nbInstructions--;
-        Serial.print("Executing instruction: ");
+        Serial.print("\tExecuting instruction: ");
         Serial.print(nextInstruction.dir);
         Serial.print(" ");
         Serial.println(nextInstruction.nbSteps);
@@ -312,7 +334,7 @@ int Pami::ReadPacket(WiFiUDP* udp, char* packetBuffer){
  * Fonctions affichage
 ***********************/
 void Pami::printPos(){
-    Serial.print("x = "); Serial.print(this->x); Serial.print(" mm ");
+    Serial.print("\tx = "); Serial.print(this->x); Serial.print(" mm ");
     Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
     Serial.print("theta = "); Serial.print(this->theta); Serial.println(" rad");
 }
