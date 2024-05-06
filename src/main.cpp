@@ -24,6 +24,27 @@ void gestionMoteur(void *pvParameters){
     xLastWakeTime = xTaskGetTickCount();
     pami.moteur_gauche.run();
     pami.moteur_droit.run();
+    switch(pami.direction){
+      case FORWARDS:
+        pami.x = pami.x_last + abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*sin(pami.theta_last);
+        pami.y = pami.y_last + abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*cos(pami.theta_last);
+        break;
+      case BACKWARDS:
+        pami.x = pami.x_last - abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*cos(pami.theta_last);
+        pami.y = pami.y_last - abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*sin(pami.theta_last);
+        break;
+      case RIGHT:
+        pami.theta = pami.theta_last + abs(pami.moteur_droit.currentPosition())*DISTANCE_CENTRE_POINT_CONTACT_ROUE*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
+        pami.theta = fmodf(pami.theta+M_PI, 2*M_PI) - M_PI;
+        break;
+      case LEFT:
+          pami.theta = pami.theta_last - abs(pami.moteur_droit.currentPosition())*DISTANCE_CENTRE_POINT_CONTACT_ROUE*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
+          pami.theta = fmodf(pami.theta+M_PI, 2*M_PI) - M_PI;
+          break;
+      default:
+          break;
+    }
+    pami.moteur_gauche.currentPosition();
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
 }
@@ -140,7 +161,7 @@ void strategie(void *pvParameters){
       case IDLE:
       //if signal top départ
         if (!pami.inZone()){
-          Serial.println("Idle");
+          Serial.println("[STATE] Idle");
           pami.moveDist(FORWARDS, 100);
           pami.state = MOVING;
         }
@@ -155,7 +176,7 @@ void strategie(void *pvParameters){
             if(pami.nbInstructions > 0){
               pami.setNextInstruction();
               pami.state = MOVING;
-              Serial.println("Moving");
+              Serial.println("[STATE] Moving");
             }
             else{
               pami.state = GO_FOR_TARGET;
@@ -164,7 +185,7 @@ void strategie(void *pvParameters){
 
           //Zone atteinte
           if (pami.inZone()) {
-            Serial.println("Zone atteinte"); 
+            Serial.println("[STATE] Zone atteinte"); 
             pami.printPos();
             pami.clearInstructions();
             pami.state = IDLE;
@@ -185,21 +206,19 @@ void strategie(void *pvParameters){
 
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
-        Serial.print("Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
+        Serial.print("[STATE] Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
-        Serial.println("Moving");
         break;
 
       //Détection d'obstacle ==> évitement
       case AVOID_OBSTACLE:
-        Serial.print("Obstacle detected at:"); pami.printPos();
+        Serial.print("[STATE] Obstacle detected at:"); pami.printPos();
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
         pami.moveDist(FORWARDS, 100);
         pami.state = MOVING;
-        Serial.println("Moving");
         break;
 
     }

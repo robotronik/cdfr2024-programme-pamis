@@ -117,6 +117,12 @@ class Pami{
         float x;
         float y;
         float theta; //Rad
+
+        //last checkpoint
+        float x_last;
+        float y_last;
+        float theta_last; 
+
         
         Zone zone;
 
