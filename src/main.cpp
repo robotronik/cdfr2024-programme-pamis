@@ -33,55 +33,39 @@ void gestionCapteur(void *pvParameters){
 
   uint8_t NewDataReady = 0;
   uint8_t status;
+  VL53L7CX_ResultsData results;
 
-  int8_t i, j, k, l;
-  uint8_t zones_per_line;
+  int8_t i;
 
-  uint8_t res = VL53L7CX_RESOLUTION_4X4;
+  uint8_t res = VL53L7CX_RESOLUTION_8X8;
   
   TickType_t xLastWakeTime;
 
   for(;;){
-    //Serial.println("Capteur");
     xLastWakeTime = xTaskGetTickCount();
 
     if (pami.state != IDLE){
-      VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
 
       status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
       //Attente de données du capteur
       if ((!status) && (NewDataReady != 0)) {
         pami.closestObstacle = INT16_MAX;
         //Chargement des données dans Results
-        status = pami.sensor.vl53l7cx_get_ranging_data(Results);
-        
-        zones_per_line = (res == VL53L7CX_RESOLUTION_8X8) ? 8 : 4;
-
-        //Serial.println("Capteur");
+        status = pami.sensor.vl53l7cx_get_ranging_data(&results);
+    
         //Calul distance minimum
-        for (j = 0; j < res; j += zones_per_line){
-          for (l = 0; l < VL53L7CX_NB_TARGET_PER_ZONE; l++){
-            for (k = (zones_per_line - 1); k >= 0; k--){
-                
-              //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
-              uint8_t zoneStatus = Results->target_status[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-              if (zoneStatus == 5 || zoneStatus == 9){
-                uint16_t distance = Results->distance_mm[(VL53L7CX_NB_TARGET_PER_ZONE * (j+k)) + l];
-                if (distance < pami.closestObstacle){
-                  pami.closestObstacle = distance;
-                }
-              }
+        //On ne regarde que la partie "basse" (partie supérieure une fois monté sur le PAMI) de la matrice de mesure
+        for (i=0; i<res/2 - 1; i++){              
+          //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
+          uint8_t zoneStatus = results.target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
+          if (zoneStatus == 5 || zoneStatus == 9){
+            uint16_t distance = results.distance_mm[VL53L7CX_NB_TARGET_PER_ZONE *i];
+            if (distance < pami.closestObstacle){
+              pami.closestObstacle = distance;
             }
-          }   
+          } 
         }
-
-        /*
-        Serial.print("Distance minimale: ");
-        Serial.print(pami.closestObstacle);
-        Serial.println(" mm");
-        */
       }
-      free(Results);
     }
     vTaskDelayUntil(&xLastWakeTime, configTICK_RATE_HZ/SENSOR_FREQUENCY_HZ);
   }
