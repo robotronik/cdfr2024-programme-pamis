@@ -255,7 +255,7 @@ void Pami::sendNextInstruction(){
                 break;
 
             case LEFT:
-                this->theta -= this->Dtheta;
+                this->theta += this->Dtheta;
                 this->Dtheta = 0;
                 this->moteur_gauche.move(+nextInstruction.nbSteps);
                 this->moteur_droit.move(+nextInstruction.nbSteps);

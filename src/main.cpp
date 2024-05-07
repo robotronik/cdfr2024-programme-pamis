@@ -261,7 +261,7 @@ void setup()
   Serial.begin(115200);
 
   pami.id = 1;
-  pami.couleur = BLEU;
+  pami.couleur = JAUNE;
   pami.init();
 
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
