@@ -24,27 +24,33 @@ void gestionMoteur(void *pvParameters){
     xLastWakeTime = xTaskGetTickCount();
     pami.moteur_gauche.run();
     pami.moteur_droit.run();
+
+    //Distance parcourue par les roues (mm, >0)
+    double distance_parcourue = abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
+
     switch(pami.direction){
       case FORWARDS:
-        pami.x = pami.x_last + abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*sin(pami.theta_last);
-        pami.y = pami.y_last + abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*cos(pami.theta_last);
+        pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
+        pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
         break;
       case BACKWARDS:
-        pami.x = pami.x_last - abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*cos(pami.theta_last);
-        pami.y = pami.y_last - abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV*sin(pami.theta_last);
+        pami.x = pami.x_last - cos(pami.theta_last)*distance_parcourue;
+        pami.y = pami.y_last - sin(pami.theta_last)*distance_parcourue;
         break;
+      /*
       case RIGHT:
-        pami.theta = pami.theta_last + abs(pami.moteur_droit.currentPosition())*DISTANCE_CENTRE_POINT_CONTACT_ROUE*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
-        pami.theta = fmodf(pami.theta+M_PI, 2*M_PI) - M_PI;
+        pami.theta = pami.theta_last - distance_parcourue / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        pami.theta = normalizeAngle(pami.theta);
         break;
       case LEFT:
-          pami.theta = pami.theta_last - abs(pami.moteur_droit.currentPosition())*DISTANCE_CENTRE_POINT_CONTACT_ROUE*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
-          pami.theta = fmodf(pami.theta+M_PI, 2*M_PI) - M_PI;
-          break;
+        pami.theta = pami.theta_last + distance_parcourue / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
+        pami.theta = normalizeAngle(pami.theta);
+        break;
+      */
       default:
-          break;
+        break;
     }
-    pami.moteur_gauche.currentPosition();
+    
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
 }
@@ -117,7 +123,7 @@ void strategie(void *pvParameters){
     switch(pami.state){
 
       case START:
-        Serial.println("Pami.state=START");
+        Serial.println("[STATE] START");
         pami.connectToWiFi();
         pami.UDPBeginAndSynchro(&udp);
         pami.state=WAIT_INFO;
@@ -162,7 +168,7 @@ void strategie(void *pvParameters){
       //if signal top départ
         if (!pami.inZone()){
           Serial.println("[STATE] Idle");
-          pami.moveDist(FORWARDS, 100);
+          pami.moveDist(FORWARDS, 150);
           pami.state = MOVING;
         }
         break;
@@ -170,11 +176,12 @@ void strategie(void *pvParameters){
       case MOVING:
         //Pami à l'arrêt  
         if (!pami.isMoving()){
+          pami.direction = STOP;
           pami.printPos();
           //Zone non atteinte
           if(!pami.inZone()){
             if(pami.nbInstructions > 0){
-              pami.setNextInstruction();
+              pami.sendNextInstruction();
               pami.state = MOVING;
               Serial.println("[STATE] Moving");
             }
@@ -186,8 +193,8 @@ void strategie(void *pvParameters){
           //Zone atteinte
           if (pami.inZone()) {
             Serial.println("[STATE] Zone atteinte"); 
-            pami.printPos();
             pami.clearInstructions();
+            pami.direction = STOP;
             pami.state = IDLE;
           }
         }
@@ -196,6 +203,7 @@ void strategie(void *pvParameters){
         else if (pami.isMoving()){
           //Obstacle détecté
           if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
+            pami.direction = STOP;
             pami.state = AVOID_OBSTACLE;
           }
           else{
@@ -206,7 +214,7 @@ void strategie(void *pvParameters){
 
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
-        Serial.print("[STATE] Go for target: "); Serial.print("x = "); Serial.print(pami.zone.x_center ); Serial.print(" y = "); Serial.println(pami.zone.y_center);  
+        Serial.print("[STATE] Go for target: "); pami.printTarget();
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
         break;
@@ -217,7 +225,7 @@ void strategie(void *pvParameters){
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
-        pami.moveDist(FORWARDS, 100);
+        pami.moveDist(FORWARDS, 150);
         pami.state = MOVING;
         break;
 
@@ -232,20 +240,20 @@ void mouvement(void *pvParameters){
 
   pami.printPos();
 
-  #ifdef TEST_LINEAR
+  #ifdef TEST_LINEAR 
   pami.moveDist(FORWARDS, 430);
   #endif
   #ifdef TEST_ANGULAR
   pami.steerRad(RIGHT, M_PI);
   #endif
 
-  pami.setNextInstruction();
+  pami.sendNextInstruction();
   pami.state = MOVING;
-  for(;;){
-    pami.moteur_gauche.run();
-    pami.moteur_droit.run();
-    vTaskDelay(1);
+  while (pami.isMoving()){
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
+  pami.printPos();
+  for(;;) vTaskDelay(pdMS_TO_TICKS(5));
 }
 
 void setup()
@@ -255,10 +263,10 @@ void setup()
   pami.id = 1;
   pami.couleur = BLEU;
   pami.init();
-  
-  
+
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
+  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
   #ifdef TEST_LINEAR
   xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
   #endif
@@ -267,7 +275,6 @@ void setup()
   #endif
   #ifdef MATCH
   xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
-  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
   #endif
   digitalWrite(LED_BUILTIN, LOW);

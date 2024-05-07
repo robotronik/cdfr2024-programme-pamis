@@ -152,38 +152,38 @@ void Pami::getSensorData(VL53L7CX_ResultsData *Results){
  * Déplacement
  *************/
 
-void Pami::moveDist(Direction dir, int distance_mm){
-    int nbSteps = abs(distance_mm*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
+//Ajoute l'instruction pour faire tourner les roues d'une valeur de distance_mm, dans le sens de rotation en accord avec la direction du déplacement du pami
+void Pami::moveDist(Direction dir, double distance_mm){
+    long nbSteps = abs(distance_mm*STEPS_PER_REV/(M_PI*DIAMETRE_ROUE));
     this->addInstruction(dir,  nbSteps);
 }
 
-void Pami::steerRad(Direction dir, float Dtheta){
+void Pami::steerRad(Direction dir, double Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
     this->moveDist(dir,Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE);
 }
 
-void Pami::goToPos(int x_target, int y_target){
-    float Dx = x_target - this->x;
-    float Dy = y_target - this->y;
-    float distance = sqrt(Dx*Dx + Dy*Dy);
+//Ajoute la série d'instruction rotation+déplacement linéaire nécessaire pour atteindre un point cible 
+void Pami::goToPos(double x_target, double y_target){
+    double Dx = x_target - this->x;
+    double Dy = y_target - this->y;
+    double distance = sqrt(Dx*Dx + Dy*Dy);
 
-    float theta_target = atan2f(Dy,Dx);
-    float Dtheta = theta_target - this->theta;
+    double theta_target = atan2f(Dy,Dx);
+    double Dtheta = theta_target - this->theta;
     
     // Normalisation de l'angle entre -pi et pi
-    Dtheta = fmodf(Dtheta + M_PI, 2 * M_PI) - M_PI;
+    Dtheta = normalizeAngle(Dtheta);
+    this->Dtheta = Dtheta;
 
     Serial.print("\tDx = "); Serial.print(Dx); Serial.print(" mm ");
     Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
     Serial.print("Dtheta = "); Serial.print(Dtheta); Serial.println(" rad");
 
-    if (Dtheta != 0) {
-        if (Dtheta > 0) {
-            this->steerRad(LEFT, abs(Dtheta));
-        } else {
-            this->steerRad(RIGHT, abs(Dtheta));
-        }
-        
+    if (Dtheta > 0) {
+        this->steerRad(LEFT, Dtheta);
+    } else if (Dtheta < 0){
+        this->steerRad(RIGHT, Dtheta);
     }
     
     this->moveDist(FORWARDS, distance);
@@ -205,7 +205,7 @@ bool Pami::inZone(){
 ***********************/
 
 //Add instruction to the list of instructions
-void Pami::addInstruction(Direction dir, int nbSteps){
+void Pami::addInstruction(Direction dir, long nbSteps){
     if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
         this->listInstruction[this->nbInstructions].dir = dir;
         this->listInstruction[this->nbInstructions].nbSteps = nbSteps;
@@ -227,33 +227,47 @@ void Pami::clearInstructions(){
     Serial.println("\tInstructions cleared");
 }
 
-//Translate next instruction into stepper commands via AccelStepper API
-void Pami::setNextInstruction(){
+//Send next instructions to steppers via AccelStepper API
+void Pami::sendNextInstruction(){
+    //Reset current position
     this->moteur_droit.setCurrentPosition(this->moteur_droit.currentPosition());
     this->moteur_gauche.setCurrentPosition(this->moteur_gauche.currentPosition());
+
+    //Save last position (checkpoint)
     this->x_last = this->x;
     this->y_last = this->y;
-    this->theta_last = this->theta; 
+    this->theta_last = this->theta;
+
+    //Convention de cablage: les 2 moteurs sont cablés dans le même sens
     if (this->nbInstructions >= 0){
         Instruction nextInstruction = this->listInstruction[0];
         this->direction = nextInstruction.dir;
         switch(nextInstruction.dir){
-            case FORWARDS:
-                this->moteur_gauche.move(nextInstruction.nbSteps);
-                this->moteur_droit.move(nextInstruction.nbSteps);
-                break;
+
             case BACKWARDS:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_gauche.move(+nextInstruction.nbSteps);
                 this->moteur_droit.move(-nextInstruction.nbSteps);
                 break;
+
+            case FORWARDS:
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_droit.move(+nextInstruction.nbSteps);
+                break;
+
             case LEFT:
-                this->moteur_gauche.move(nextInstruction.nbSteps);
+                this->theta -= this->Dtheta;
+                this->Dtheta = 0;
+                this->moteur_gauche.move(+nextInstruction.nbSteps);
+                this->moteur_droit.move(+nextInstruction.nbSteps);
+                break;
+            
+            case RIGHT:
+                this->theta += this->Dtheta;
+                this->Dtheta = 0;
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
                 this->moteur_droit.move(-nextInstruction.nbSteps);
                 break;
-            case RIGHT:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
-                this->moteur_droit.move(nextInstruction.nbSteps);
-                break;
+            
             case STOP:
                 this->moteur_gauche.stop();
                 this->moteur_droit.stop();
@@ -280,9 +294,6 @@ bool Pami::isMoving(){
 /**********
  * WiFi
  * ********/
-/**********************
- * Fonctions connectivité
-***********************/
 void Pami::connectToWiFi(){
     WiFi.mode(WIFI_STA); 
     WiFi.begin(SSID,PASSWORD);
@@ -336,7 +347,7 @@ int Pami::ReadPacket(WiFiUDP* udp, char* packetBuffer){
 void Pami::printPos(){
     Serial.print("\tx = "); Serial.print(this->x); Serial.print(" mm ");
     Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
-    Serial.print("theta = "); Serial.print(this->theta); Serial.println(" rad");
+    Serial.print("theta = "); Serial.print(fmod(M_PI + this->theta, 2*M_PI) - M_PI); Serial.println(" rad");
 }
 
 void Pami::printLocalTime(struct tm* timeinfo){
@@ -346,4 +357,21 @@ void Pami::printLocalTime(struct tm* timeinfo){
     Serial.print(timeinfo->tm_min);
     Serial.print(":");
     Serial.println(timeinfo->tm_sec);
-}   
+} 
+
+
+void Pami::printTarget(){
+    Serial.print("center = ("); Serial.print(this->zone.x_center); Serial.print(","); Serial.print(this->zone.y_center); Serial.print(") ");
+    Serial.print("x1 = ("); Serial.print(this->zone.x_1); Serial.print(","); Serial.print(this->zone.y_1); Serial.print(") ");
+    Serial.print("x2 = ("); Serial.print(this->zone.x_2); Serial.print(","); Serial.print(this->zone.y_2); Serial.println(")");
+}
+
+//Utilities
+
+//Normalize angle between [-pi,pi]
+double normalizeAngle(double angle){
+    angle = fmod(angle, 2*M_PI);
+    if (angle > M_PI) angle -= 2*M_PI;
+    else if (angle < -M_PI) angle += 2*M_PI;
+    return angle;
+}

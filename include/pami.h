@@ -7,7 +7,8 @@
 #include "vl53l7cx_class.h"
 #include <WiFi.h>
 #include "SPI.h"
-#include "math.h"
+
+#include <cmath>
 #include "zone.h"
 #include "AccelStepper.h"
 
@@ -29,8 +30,8 @@
 #define NB_MAX_INSTRUCTIONS 10
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 36 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
-#define DIAMETRE_ROUE 78//mm
+#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 71.85/2 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DIAMETRE_ROUE 79.5773//mm
 #define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
 
@@ -81,15 +82,18 @@ class Pami{
         void getSensorData(VL53L7CX_ResultsData *Results);
         
         //Déplacement
-        void moveDist(Direction dir, int distance_mm);
-        void steerRad(Direction dir, float orientation_rad);
+        void moveDist(Direction dir, double distance_mm);
+        void steerRad(Direction dir, double orientation_rad);
         void setPos(int x, int y);
-        void goToPos(int x, int y);
+        void goToPos(double x, double y);
         bool inZone();
         bool isMoving();
-        void addInstruction(Direction dir, int nbSteps);
+        void addInstruction(Direction dir, long nbSteps);
         void clearInstructions();
-        void setNextInstruction();
+        void sendNextInstruction();
+        void printTarget();
+
+        //WiFI
         void connectToWiFi();
         void UDPBeginAndSynchro(WiFiUDP *udp);
         void SendUDPPacket(WiFiUDP *udp);
@@ -114,14 +118,16 @@ class Pami{
         int speed = 100;
         int nbStepsToDo = 0;
 
-        float x;
-        float y;
-        float theta; //Rad
+        //Current position
+        double x;
+        double y;
+        double theta; //Rad
 
-        //last checkpoint
-        float x_last;
-        float y_last;
-        float theta_last; 
+        //Last saved position (checkpoint)
+        double x_last;
+        double y_last;
+        double theta_last;
+        double Dtheta; 
 
         
         Zone zone;
@@ -131,5 +137,7 @@ class Pami{
         Instruction listInstruction[NB_MAX_INSTRUCTIONS];
         int nbInstructions = 0;
 };
+
+double normalizeAngle(double angle);
 
 #endif
