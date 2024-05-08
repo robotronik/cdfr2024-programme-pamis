@@ -96,18 +96,21 @@ void setup()
   pinMode(LED, OUTPUT);
   // Initialize serial for output.
   SerialPort.begin(115200);
-
+  SerialPort.println("Setup start");
   // Initialize I2C bus.
   DEV_I2C.begin();
 
   // Configure VL53L7CX component.
   sensor_vl53l7cx_top.begin();
+  SerialPort.println("Setup CP1");
 
   sensor_vl53l7cx_top.init_sensor();
   sensor_vl53l7cx_top.vl53l7cx_set_ranging_frequency_hz(FREQUENCY_HZ);
+  SerialPort.println("Setup CP2");
 
   // Start Measurements
   sensor_vl53l7cx_top.vl53l7cx_start_ranging();
+  SerialPort.println("Setup done");
 
 }
 
@@ -163,22 +166,4 @@ void loop()
   }
 
   free(Results);
-  /*
-  //Affichage du temps d'éxécution de la boucle
-  loopTime = millis() - loopTime;
-  sprintf(report,"Loop time : %d ms", loopTime);
-  Serial.println(report);
-
-  //Affichage du temps de calcul
-  calcTime = millis() - calcTime;
-  sprintf(report,"Calc time : %d ms", calcTime);
-  Serial.println(report);
-
-
-  //Affichage de la distance minimum
-  sprintf(report, "Distance minimum : %d mm", minDistance);
-  Serial.println(report);
-
-  Serial.println("------------------------------------------------------");
-  */
 }

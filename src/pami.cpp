@@ -2,7 +2,7 @@
 
 Pami::Pami() : moteur_gauche(1, LEFT_STEP_PIN, LEFT_DIR_PIN),
                moteur_droit(1, RIGHT_STEP_PIN, RIGHT_DIR_PIN),
-               sensor(&Wire, LPN_PIN, I2C_RST_PIN){
+               sensor(&Wire, 0, 0){
 
 }
 
@@ -33,11 +33,11 @@ void Pami::init(){
     //pami.connectToWiFi(ssid,password,server_ip,udp);
     
     // Enable PWREN pin if present
-    if (PWREN_PIN >= 0) {
+    #ifdef PWREN_PIN
         pinMode(PWREN_PIN, OUTPUT);
         digitalWrite(PWREN_PIN, HIGH);
         delay(10);
-    }
+    #endif
 
     // Configure VL53L7CX component.
     this->sensor.begin();
@@ -119,9 +119,10 @@ void Pami::init(){
 
 void Pami::shutdown(){
     // Disable PWREN pin if present
-    if (PWREN_PIN >= 0) {
-        digitalWrite(PWREN_PIN, LOW);
-    }
+    #ifdef PWRENPIN 
+    digitalWrite(PWREN_PIN, LOW);
+    #endif
+
     // Stop Measurements
     this->sensor.vl53l7cx_stop_ranging();
     // Shutdown I2C bus.
@@ -160,6 +161,7 @@ void Pami::moveDist(Direction dir, double distance_mm){
 
 void Pami::steerRad(Direction dir, double Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
+    this->Dtheta = Dtheta;
     this->moveDist(dir,Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE);
 }
 
@@ -174,9 +176,9 @@ void Pami::goToPos(double x_target, double y_target){
     
     // Normalisation de l'angle entre -pi et pi
     Dtheta = normalizeAngle(Dtheta);
-    this->Dtheta = Dtheta;
 
-    Serial.print("\tDx = "); Serial.print(Dx); Serial.print(" mm ");
+    Serial.print("    |");
+    Serial.print("--> Dx = "); Serial.print(Dx); Serial.print(" mm ");
     Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
     Serial.print("Dtheta = "); Serial.print(Dtheta); Serial.println(" rad");
 
@@ -195,8 +197,9 @@ void Pami::setPos(int x, int y){
 }
 
 bool Pami::inZone(){
+    //x1 <= x <= x2 et y1 <= y <= y2
     bool x_in_zone = (this->x >= this->zone.x_1 && this->x <= this->zone.x_2);
-    bool y_in_zone = (this->y >= this->zone.y_2 && this->y <= this->zone.y_1);  
+    bool y_in_zone = (this->y >= this->zone.y_1 && this->y <= this->zone.y_2);  
     return (x_in_zone && y_in_zone);
 }
 
@@ -209,7 +212,7 @@ void Pami::addInstruction(Direction dir, long nbSteps){
     if (this->nbInstructions+1<=NB_MAX_INSTRUCTIONS){
         this->listInstruction[this->nbInstructions].dir = dir;
         this->listInstruction[this->nbInstructions].nbSteps = nbSteps;
-        Serial.print("\tInstruction added: ");
+        Serial.print("    |"); Serial.print("++> Instruction added: ");
         Serial.print(this->listInstruction[this->nbInstructions].dir);
         Serial.print(" ");
         Serial.println(this->listInstruction[this->nbInstructions].nbSteps);
@@ -224,7 +227,7 @@ void Pami::clearInstructions(){
         this->listInstruction[i].dir = STOP;
         this->listInstruction[i].nbSteps = 0;
     }
-    Serial.println("\tInstructions cleared");
+    Serial.print("    |"); Serial.println("--> Instructions cleared <--");
 }
 
 //Send next instructions to steppers via AccelStepper API
@@ -279,7 +282,7 @@ void Pami::sendNextInstruction(){
         }
 
         this->nbInstructions--;
-        Serial.print("\tExecuting instruction: ");
+        Serial.print("    |"); Serial.print("==> Executing instruction: ");
         Serial.print(nextInstruction.dir);
         Serial.print(" ");
         Serial.println(nextInstruction.nbSteps);
@@ -345,7 +348,8 @@ int Pami::ReadPacket(WiFiUDP* udp, char* packetBuffer){
  * Fonctions affichage
 ***********************/
 void Pami::printPos(){
-    Serial.print("\tx = "); Serial.print(this->x); Serial.print(" mm ");
+    Serial.print("    |");
+    Serial.print("--: x = "); Serial.print(this->x); Serial.print(" mm ");
     Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
     Serial.print("theta = "); Serial.print(fmod(M_PI + this->theta, 2*M_PI) - M_PI); Serial.println(" rad");
 }

@@ -13,9 +13,11 @@
 #include "AccelStepper.h"
 
 //Pinout 
+/*
 #define LPN_PIN GPIO_NUM_26
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
+*/
 
 #define LEFT_DIR_PIN GPIO_NUM_5 
 #define LEFT_STEP_PIN  GPIO_NUM_4

@@ -167,7 +167,7 @@ void strategie(void *pvParameters){
       case IDLE:
       //if signal top départ
         if (!pami.inZone()){
-          Serial.println("[STATE] Idle");
+          Serial.println("\n[STATE] Idle");
           pami.moveDist(FORWARDS, 150);
           pami.state = MOVING;
         }
@@ -183,7 +183,7 @@ void strategie(void *pvParameters){
             if(pami.nbInstructions > 0){
               pami.sendNextInstruction();
               pami.state = MOVING;
-              Serial.println("[STATE] Moving");
+              Serial.println("\t[STATE] Moving");
             }
             else{
               pami.state = GO_FOR_TARGET;
@@ -192,7 +192,7 @@ void strategie(void *pvParameters){
 
           //Zone atteinte
           if (pami.inZone()) {
-            Serial.println("[STATE] Zone atteinte"); 
+            Serial.println("\n[STATE] Zone atteinte"); 
             pami.clearInstructions();
             pami.direction = STOP;
             pami.state = END;
@@ -214,28 +214,30 @@ void strategie(void *pvParameters){
 
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
-        Serial.print("[STATE] Go for target: "); pami.printTarget();
+        digitalWrite(LED_BUILTIN, LOW);
+        Serial.print("\n[STATE] Go for target: "); pami.printTarget();
         pami.goToPos(pami.zone.x_center, pami.zone.y_center);
         pami.state = MOVING;
         break;
 
       //Détection d'obstacle ==> évitement
       case AVOID_OBSTACLE:
-        Serial.print("[STATE] Obstacle detected at:"); pami.printPos();
+        digitalWrite(LED_BUILTIN, HIGH);
+        Serial.print("\n[STATE] Obstacle detected at:"); pami.printPos();
         pami.clearInstructions();
-        pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
         pami.moveDist(FORWARDS, 150);
         pami.state = MOVING;
         break;
 
       case END:
-        Serial.println("[STATE] End");
+        Serial.println("\n[STATE] End");
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.direction = STOP;
         double final_orientation;
         if (pami.zone.type == JARDINIERE){
+          Serial.print("    |"); Serial.println("--[Action de fin jardinière]");
           switch(pami.couleur){
             case JAUNE:
               switch(pami.id){
@@ -273,18 +275,23 @@ void strategie(void *pvParameters){
             dir = RIGHT;
           }
           
+          pami.printPos();
           pami.steerRad(dir, Dtheta);
           pami.sendNextInstruction();
           while(pami.isMoving()){
             vTaskDelay(pdMS_TO_TICKS(5));
           }
 
+          pami.printPos();
           pami.moveDist(FORWARDS, 150);
           pami.sendNextInstruction();
           while(pami.isMoving()){
             vTaskDelay(pdMS_TO_TICKS(5));
           }
         }
+
+        Serial.println("\n========================================== END ==========================================");
+        pami.printPos();  
         for(;;) vTaskDelay(pdMS_TO_TICKS(5));
         break;
 
@@ -319,8 +326,8 @@ void setup()
 {
   Serial.begin(115200);
 
-  pami.id = 1;
-  pami.couleur = JAUNE;
+  pami.id = 2;
+  pami.couleur = BLEU;
   pami.init();
 
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
@@ -336,7 +343,9 @@ void setup()
   xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
   #endif
+
   digitalWrite(LED_BUILTIN, LOW);
+  Serial.println("========================================= START =========================================");
 }
 
 void loop(){}
