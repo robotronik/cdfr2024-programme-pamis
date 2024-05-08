@@ -195,7 +195,7 @@ void strategie(void *pvParameters){
             Serial.println("[STATE] Zone atteinte"); 
             pami.clearInstructions();
             pami.direction = STOP;
-            pami.state = IDLE;
+            pami.state = END;
           }
         }
 
@@ -227,6 +227,65 @@ void strategie(void *pvParameters){
         pami.steerRad(LEFT, M_PI/2); 
         pami.moveDist(FORWARDS, 150);
         pami.state = MOVING;
+        break;
+
+      case END:
+        Serial.println("[STATE] End");
+        pami.clearInstructions();
+        pami.nbStepsToDo = 0;
+        pami.direction = STOP;
+        double final_orientation;
+        if (pami.zone.type == JARDINIERE){
+          switch(pami.couleur){
+            case JAUNE:
+              switch(pami.id){
+                case 2:
+                  final_orientation = M_PI/2;
+                  break;
+                case 3:
+                  final_orientation = M_PI;
+                  break;
+                default:
+                  break;
+              }
+              break;
+
+            case BLEU:
+              switch (pami.id){
+              case 2:
+                final_orientation = -M_PI/2;
+                break;
+              case 3:
+                final_orientation = -M_PI;
+                break;
+              default:
+                break;
+              }
+              break;
+          }
+
+          double Dtheta = final_orientation - pami.theta;
+          Direction dir;
+          if (Dtheta > 0){
+            dir = LEFT;
+          }
+          else if (Dtheta < 0){
+            dir = RIGHT;
+          }
+          
+          pami.steerRad(dir, Dtheta);
+          pami.sendNextInstruction();
+          while(pami.isMoving()){
+            vTaskDelay(pdMS_TO_TICKS(5));
+          }
+
+          pami.moveDist(FORWARDS, 150);
+          pami.sendNextInstruction();
+          while(pami.isMoving()){
+            vTaskDelay(pdMS_TO_TICKS(5));
+          }
+        }
+        for(;;) vTaskDelay(pdMS_TO_TICKS(5));
         break;
 
     }
