@@ -26,31 +26,14 @@ void gestionMoteur(void *pvParameters){
     pami.moteur_droit.run();
 
     //Distance parcourue par les roues (mm, >0)
-    double distance_parcourue = abs(pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/STEPS_PER_REV;
+    double distance_parcourue = (pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
+    double Dtheta = (pami.moteur_droit.currentPosition()-pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/((double)STEPS_PER_REV*DISTANCE_ROUES);
 
-    switch(pami.direction){
-      case FORWARDS:
-        pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
-        pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
-        break;
-      case BACKWARDS:
-        pami.x = pami.x_last - cos(pami.theta_last)*distance_parcourue;
-        pami.y = pami.y_last - sin(pami.theta_last)*distance_parcourue;
-        break;
-      /*
-      case RIGHT:
-        pami.theta = pami.theta_last - distance_parcourue / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        pami.theta = normalizeAngle(pami.theta);
-        break;
-      case LEFT:
-        pami.theta = pami.theta_last + distance_parcourue / DISTANCE_CENTRE_POINT_CONTACT_ROUE;
-        pami.theta = normalizeAngle(pami.theta);
-        break;
-      */
-      default:
-        break;
-    }
-    
+    pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
+    pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
+  
+    pami.theta = normalizeAngle(pami.theta_last + Dtheta);
+
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
 }
@@ -60,16 +43,16 @@ void gestionCapteur(void *pvParameters){
 
   uint8_t NewDataReady = 0;
   uint8_t status;
-  VL53L7CX_ResultsData results;
 
-  int8_t i;
-
-  uint8_t res = VL53L7CX_RESOLUTION_8X8;
+  uint8_t i;
+  uint8_t  res = SENSOR_RES;
   
   TickType_t xLastWakeTime;
+  pami.closestObstacle = INT16_MAX;
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
+    VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
 
     if (pami.state != IDLE){
 
@@ -78,15 +61,15 @@ void gestionCapteur(void *pvParameters){
       if ((!status) && (NewDataReady != 0)) {
         pami.closestObstacle = INT16_MAX;
         //Chargement des données dans Results
-        status = pami.sensor.vl53l7cx_get_ranging_data(&results);
+        status = pami.sensor.vl53l7cx_get_ranging_data(Results);
     
         //Calul distance minimum
         //On ne regarde que la partie "basse" (partie supérieure une fois monté sur le PAMI) de la matrice de mesure
         for (i=0; i<res/2 - 1; i++){              
           //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
-          uint8_t zoneStatus = results.target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
+          uint8_t zoneStatus = Results->target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
           if (zoneStatus == 5 || zoneStatus == 9){
-            uint16_t distance = results.distance_mm[VL53L7CX_NB_TARGET_PER_ZONE *i];
+            uint16_t distance = Results->distance_mm[VL53L7CX_NB_TARGET_PER_ZONE *i];
             if (distance < pami.closestObstacle){
               pami.closestObstacle = distance;
             }
@@ -94,7 +77,13 @@ void gestionCapteur(void *pvParameters){
         }
       }
     }
-    vTaskDelayUntil(&xLastWakeTime, configTICK_RATE_HZ/SENSOR_FREQUENCY_HZ);
+    free(Results);  
+    if (pami.closestObstacle < THRESHOLD){
+      digitalWrite(LED_BUILTIN, HIGH);
+    } else {
+      digitalWrite(LED_BUILTIN, LOW);
+    }
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2));
   }
 }
 
@@ -165,52 +154,68 @@ void strategie(void *pvParameters){
         break;
         
       case IDLE:
+        Serial.println("\n[STATE] Idle");
+      #ifdef MATCH
       //if signal top départ
         if (!pami.inZone()){
-          Serial.println("\n[STATE] Idle");
           pami.moveDist(FORWARDS, 150);
           pami.state = MOVING;
         }
         break;
+      #endif
+      #ifdef TEST_LINEAR
+        pami.moveDist(FORWARDS, 430);
+        pami.state = MOVING;
+        break;
+      #endif
+      #ifdef TEST_ANGULAR
+        pami.steerRad(RIGHT, M_PI);
+        pami.state = MOVING;
+        break;
+      #endif
 
-      case MOVING:
-        //Pami à l'arrêt  
-        if (!pami.isMoving()){
-          pami.direction = STOP;
-          pami.printPos();
-          //Zone non atteinte
-          if(!pami.inZone()){
-            if(pami.nbInstructions > 0){
-              pami.sendNextInstruction();
-              pami.state = MOVING;
-              Serial.println("\t[STATE] Moving");
-            }
-            else{
-              pami.state = GO_FOR_TARGET;
-            }
-          }
-
-          //Zone atteinte
-          if (pami.inZone()) {
-            Serial.println("\n[STATE] Zone atteinte"); 
-            pami.clearInstructions();
-            pami.direction = STOP;
-            pami.state = END;
-          }
-        }
-
-        //Pami en mouvement
-        else if (pami.isMoving()){
-          //Obstacle détecté
-          if( pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
-            pami.direction = STOP;
-            pami.state = AVOID_OBSTACLE;
+      case STOPPED:
+        pami.direction = STOP;
+        Serial.print("    |--:"); pami.printPos();
+        //Zone non atteinte
+        if(!pami.inZone()){
+          if(pami.nbInstructions > 0){
+            pami.sendNextInstruction();
+            pami.state = MOVING;
+            Serial.println("\t[STATE] Moving");
           }
           else{
-            pami.state = MOVING;
+            #ifdef MATCH
+            pami.state = GO_FOR_TARGET;
+            #else 
+            pami.state = END;
+            #endif
           }
         }
-        break;
+
+        //Zone atteinte
+        if (pami.inZone()) {
+          Serial.println("\n[STATE] Zone atteinte"); 
+          pami.clearInstructions();
+          pami.direction = STOP;
+          pami.state = END;
+        }
+      break;
+
+      //Pami en mouvement
+      case MOVING:
+        //Obstacle détecté
+        if (pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
+          pami.direction = STOP;
+          pami.state = AVOID_OBSTACLE;
+        }
+        if (!pami.isMoving()){
+          pami.state = STOPPED;
+        }
+        else{
+          pami.state = MOVING;
+        }
+      break;
 
       //Pami se dirige vers sa zone
       case GO_FOR_TARGET:
@@ -225,7 +230,6 @@ void strategie(void *pvParameters){
         digitalWrite(LED_BUILTIN, HIGH);
         Serial.print("\n[STATE] Obstacle detected at:"); pami.printPos();
         pami.clearInstructions();
-        pami.nbStepsToDo = 0;
         pami.steerRad(LEFT, M_PI/2); 
         pami.moveDist(FORWARDS, 150);
         pami.state = MOVING;
@@ -236,9 +240,11 @@ void strategie(void *pvParameters){
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.direction = STOP;
+
+        #ifdef MATCH
         double final_orientation;
         if (pami.zone.type == JARDINIERE){
-          Serial.print("    |"); Serial.println("--[Action de fin jardinière]");
+          Serial.println("\n[Action de fin jardinière]");
           switch(pami.couleur){
             case JAUNE:
               switch(pami.id){
@@ -276,20 +282,21 @@ void strategie(void *pvParameters){
             dir = RIGHT;
           }
           
-          pami.printPos();
+          Serial.print("    |--:"); pami.printPos();
           pami.steerRad(dir, Dtheta);
           pami.sendNextInstruction();
           while(pami.isMoving()){
             vTaskDelay(pdMS_TO_TICKS(5));
           }
 
-          pami.printPos();
+          Serial.print("    |--:"); pami.printPos();
           pami.moveDist(FORWARDS, 150);
           pami.sendNextInstruction();
           while(pami.isMoving()){
             vTaskDelay(pdMS_TO_TICKS(5));
           }
         }
+        #endif
 
         Serial.println("\n========================================== END ==========================================");
         pami.printPos();  
@@ -301,28 +308,6 @@ void strategie(void *pvParameters){
   }
 }
 
-void mouvement(void *pvParameters){
-  vTaskDelay(pdMS_TO_TICKS(10));
-  Serial.println("Début Mouvement");
-
-  pami.printPos();
-
-  #ifdef TEST_LINEAR 
-  pami.moveDist(FORWARDS, 430);
-  #endif
-  #ifdef TEST_ANGULAR
-  pami.steerRad(RIGHT, M_PI);
-  #endif
-
-  pami.sendNextInstruction();
-  pami.state = MOVING;
-  while (pami.isMoving()){
-    vTaskDelay(pdMS_TO_TICKS(5));
-  }
-  pami.printPos();
-  for(;;) vTaskDelay(pdMS_TO_TICKS(5));
-}
-
 void setup()
 {
   Serial.begin(115200);
@@ -331,19 +316,9 @@ void setup()
   pami.couleur = BLEU;
   pami.init();
 
-  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
-
-  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
-  #ifdef TEST_LINEAR
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
-  #endif
-  #ifdef TEST_ANGULAR
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
-  #endif
-  #ifdef MATCH
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
-  #endif
+  //xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
+  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,1);
+  //xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("========================================= START =========================================");

@@ -5,7 +5,7 @@
 #include "soc/rtc_wdt.h"
 #include "AccelStepper.h"
 
-#define TEST_ANGULAR
+#define MATCH
 
 // Components
 Pami pami;
@@ -43,40 +43,47 @@ void gestionCapteur(void *pvParameters){
 
   uint8_t NewDataReady = 0;
   uint8_t status;
-  VL53L7CX_ResultsData results;
 
   uint8_t i;
   uint8_t  res = SENSOR_RES;
   
   TickType_t xLastWakeTime;
+  double minValue = INT16_MAX;
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
+    VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
 
     if (pami.state != IDLE){
 
       status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
       //Attente de données du capteur
       if ((!status) && (NewDataReady != 0)) {
-        pami.closestObstacle = INT16_MAX;
+        minValue = INT16_MAX;
         //Chargement des données dans Results
-        status = pami.sensor.vl53l7cx_get_ranging_data(&results);
+        status = pami.sensor.vl53l7cx_get_ranging_data(Results);
     
         //Calul distance minimum
         //On ne regarde que la partie "basse" (partie supérieure une fois monté sur le PAMI) de la matrice de mesure
         for (i=0; i<res/2 - 1; i++){              
           //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
-          uint8_t zoneStatus = results.target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
+          uint8_t zoneStatus = Results->target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
           if (zoneStatus == 5 || zoneStatus == 9){
-            uint16_t distance = results.distance_mm[VL53L7CX_NB_TARGET_PER_ZONE *i];
+            uint16_t distance = Results->distance_mm[VL53L7CX_NB_TARGET_PER_ZONE *i];
             if (distance < pami.closestObstacle){
-              pami.closestObstacle = distance;
+              minValue = distance;
             }
           } 
         }
       }
     }
-    vTaskDelayUntil(&xLastWakeTime, configTICK_RATE_HZ/SENSOR_FREQUENCY_HZ);
+    free(Results);  
+    pami.closestObstacle = minValue;
+    if (pami.closestObstacle < THRESHOLD){
+      Serial.println("Obstacle détecté");
+    } 
+    //Delay according to sensor frequency
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(CONFIG_FREERTOS_HZ/SENSOR_FREQUENCY_HZ));
   }
 }
 
@@ -198,7 +205,7 @@ void strategie(void *pvParameters){
       //Pami en mouvement
       case MOVING:
         //Obstacle détecté
-        if (pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS || pami.direction == BACKWARDS)){
+        if (pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS)){
           pami.direction = STOP;
           pami.state = AVOID_OBSTACLE;
         }
@@ -297,7 +304,7 @@ void strategie(void *pvParameters){
         break;
 
     }
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
   }
 }
 
@@ -305,15 +312,13 @@ void setup()
 {
   Serial.begin(115200);
 
-  pami.id = 2;
+  pami.id = 1;
   pami.couleur = BLEU;
   pami.init();
 
-  //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
-
   xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
+  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
+  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES-1, NULL,0);
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("========================================= START =========================================");

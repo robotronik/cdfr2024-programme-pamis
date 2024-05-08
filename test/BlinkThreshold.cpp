@@ -89,7 +89,7 @@ void setup()
   // Enable PWREN pin if present
   if (PWREN_PIN >= 0) {
     pinMode(PWREN_PIN, OUTPUT);
-    digitalWrite(PWREN_PIN, HIGH);
+    digitalWrite(PWREN_PIN, LOW);
     delay(10);
   }
 
