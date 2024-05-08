@@ -41,12 +41,14 @@ void Pami::init(){
 
     // Configure VL53L7CX component.
     this->sensor.begin();
-
+    Serial.println("VL53L7CX component initialized.");
     this->sensor.init_sensor();
     this->sensor.vl53l7cx_set_ranging_frequency_hz(SENSOR_FREQUENCY_HZ);
+    Serial.println("SATEL-VL53L7CX board initialized.");
 
     // Start Measurements
     this->sensor.vl53l7cx_start_ranging();
+    Serial.println("VL53L7CX starting measures.");
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -59,11 +61,13 @@ void Pami::init(){
     this->moteur_droit.setMaxSpeed(MAX_SPEED);
     this->moteur_droit.setSpeed(0);
 
+    Serial.println("Motors setup.");
+
     //Read HW ID
     /*this->id = digitalRead(DS1_PIN)
             + digitalRead(DS2_PIN)*2
             + digitalRead(DS3_PIN)*4;*/
-
+    Serial.print("PAMI - ID: "); Serial.print(this->id); 
     //Defining coordinates
     // Initially, all the pamis are on the same horizontal axis
     // and have the same orientation
@@ -112,9 +116,11 @@ void Pami::init(){
             }
             break;
     }
+    Serial.println("Start coordinates: ");  this->printPos();
     this->nbStepsToDo=0;
     this->direction=STOP;
     this->state = IDLE;
+    Serial.println("Setup done.");  
 }
 
 void Pami::shutdown(){
@@ -267,8 +273,8 @@ void Pami::sendNextInstruction(){
                 break;
             
             case STOP:
-                this->moteur_gauche.stop();
-                this->moteur_droit.stop();
+                this->moteur_gauche.setSpeed(0);
+                this->moteur_droit.setSpeed(0);
                 break;
         }
 
@@ -285,7 +291,7 @@ void Pami::sendNextInstruction(){
 }
 
 
-bool Pami::isMoving(){
+bool Pami::motorsAreRunning(){
     return (this->moteur_gauche.distanceToGo() != 0 || this->moteur_droit.distanceToGo() != 0);
 }
 

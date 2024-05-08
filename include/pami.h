@@ -57,7 +57,7 @@
 
 //Types énumérés
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
-enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, STOPPED, MOVING, END};
+enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, STOPPED, BLOCKED, MOVING, END};
 enum Couleur {BLEU, JAUNE}; 
 
 //Commande moteurs
@@ -92,7 +92,7 @@ class Pami{
         void setPos(int x, int y);
         void goToPos(double x, double y);
         bool inZone();
-        bool isMoving();
+        bool motorsAreRunning();
         void addInstruction(Direction dir, long nbSteps);
         void clearInstructions();
         void sendNextInstruction();
@@ -139,6 +139,7 @@ class Pami{
 
         uint16_t closestObstacle = UINT16_MAX;
         State state;
+        State nextState;
         Instruction listInstruction[NB_MAX_INSTRUCTIONS];
         int nbInstructions = 0;
 };
