@@ -33,11 +33,11 @@ void Pami::init(){
     //pami.connectToWiFi(ssid,password,server_ip,udp);
     
     // Enable PWREN pin if present
-    #ifdef PWREN_PIN
+    if (PWREN_PIN != 0){
         pinMode(PWREN_PIN, OUTPUT);
-        digitalWrite(PWREN_PIN, HIGH);
+        digitalWrite(PWREN_PIN, LOW);
         delay(10);
-    #endif
+    }
 
     // Configure VL53L7CX component.
     this->sensor.begin();
@@ -162,7 +162,7 @@ void Pami::moveDist(Direction dir, double distance_mm){
 void Pami::steerRad(Direction dir, double Dtheta){
     if (dir != LEFT && dir != RIGHT) return;
     this->Dtheta = Dtheta;
-    this->moveDist(dir,Dtheta*DISTANCE_CENTRE_POINT_CONTACT_ROUE);
+    this->moveDist(dir,Dtheta*DISTANCE_ROUES/2);
 }
 
 //Ajoute la série d'instruction rotation+déplacement linéaire nécessaire pour atteindre un point cible 
@@ -178,8 +178,7 @@ void Pami::goToPos(double x_target, double y_target){
     Dtheta = normalizeAngle(Dtheta);
 
     Serial.print("    |");
-    Serial.print("--> Dx = "); Serial.print(Dx); Serial.print(" mm ");
-    Serial.print("Dy = "); Serial.print(Dy); Serial.print(" mm ");
+    Serial.print("--> dist = "); Serial.print(distance); Serial.print(" mm ");
     Serial.print("Dtheta = "); Serial.print(Dtheta); Serial.println(" rad");
 
     if (Dtheta > 0) {
@@ -248,26 +247,22 @@ void Pami::sendNextInstruction(){
         switch(nextInstruction.dir){
 
             case BACKWARDS:
-                this->moteur_gauche.move(+nextInstruction.nbSteps);
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
                 this->moteur_droit.move(-nextInstruction.nbSteps);
                 break;
 
             case FORWARDS:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_gauche.move(+nextInstruction.nbSteps);
                 this->moteur_droit.move(+nextInstruction.nbSteps);
                 break;
 
             case LEFT:
-                this->theta += this->Dtheta;
-                this->Dtheta = 0;
-                this->moteur_gauche.move(+nextInstruction.nbSteps);
+                this->moteur_gauche.move(-nextInstruction.nbSteps);
                 this->moteur_droit.move(+nextInstruction.nbSteps);
                 break;
             
             case RIGHT:
-                this->theta += this->Dtheta;
-                this->Dtheta = 0;
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
+                this->moteur_gauche.move(+nextInstruction.nbSteps);
                 this->moteur_droit.move(-nextInstruction.nbSteps);
                 break;
             
@@ -348,8 +343,7 @@ int Pami::ReadPacket(WiFiUDP* udp, char* packetBuffer){
  * Fonctions affichage
 ***********************/
 void Pami::printPos(){
-    Serial.print("    |");
-    Serial.print("--: x = "); Serial.print(this->x); Serial.print(" mm ");
+    Serial.print("x = "); Serial.print(this->x); Serial.print(" mm ");
     Serial.print("y = "); Serial.print(this->y); Serial.print(" mm ");
     Serial.print("theta = "); Serial.print(fmod(M_PI + this->theta, 2*M_PI) - M_PI); Serial.println(" rad");
 }

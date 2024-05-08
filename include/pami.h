@@ -13,11 +13,11 @@
 #include "AccelStepper.h"
 
 //Pinout 
-/*
+
 #define LPN_PIN GPIO_NUM_26
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
-*/
+
 
 #define LEFT_DIR_PIN GPIO_NUM_5 
 #define LEFT_STEP_PIN  GPIO_NUM_4
@@ -31,10 +31,13 @@
 
 #define NB_MAX_INSTRUCTIONS 10
 
+//Caractéristiques du capteur ToF   
+#define SENSOR_FREQUENCY_HZ 60
+#define SENSOR_RES  VL53L7CX_RESOLUTION_4X4; // 4x4 resolution
+
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_CENTRE_POINT_CONTACT_ROUE 71.85/2 //Distance entre le centre du PAMI et le point de contact de la roue en projection sur le sol
+#define DISTANCE_ROUES 62.6//Distance entres les points de contact des roues
 #define DIAMETRE_ROUE 79.5773//mm
-#define SENSOR_FREQUENCY_HZ 10
 #define THRESHOLD 30//mm
 
 //Caractéristiques moteurs
@@ -54,7 +57,7 @@
 
 //Types énumérés
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
-enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, MOVING, END};
+enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, GO_FOR_TARGET, AVOID_OBSTACLE, STOPPED, MOVING, END};
 enum Couleur {BLEU, JAUNE}; 
 
 //Commande moteurs
