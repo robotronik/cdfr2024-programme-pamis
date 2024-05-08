@@ -5,7 +5,7 @@
 #include "soc/rtc_wdt.h"
 #include "AccelStepper.h"
 
-#define MATCH
+#define TEST_ANGULAR
 
 // Components
 Pami pami;
@@ -147,13 +147,25 @@ void strategie(void *pvParameters){
         break;
         
       case IDLE:
+        Serial.println("\n[STATE] Idle");
+      #ifdef MATCH
       //if signal top départ
         if (!pami.inZone()){
-          Serial.println("\n[STATE] Idle");
           pami.moveDist(FORWARDS, 150);
           pami.state = MOVING;
         }
         break;
+      #endif
+      #ifdef TEST_LINEAR
+        pami.moveDist(FORWARDS, 430);
+        pami.state = MOVING;
+        break;
+      #endif
+      #ifdef TEST_ANGULAR
+        pami.steerRad(RIGHT, M_PI);
+        pami.state = MOVING;
+        break;
+      #endif
 
       case STOPPED:
         pami.direction = STOP;
@@ -166,7 +178,11 @@ void strategie(void *pvParameters){
             Serial.println("\t[STATE] Moving");
           }
           else{
+            #ifdef MATCH
             pami.state = GO_FOR_TARGET;
+            #else 
+            pami.state = END;
+            #endif
           }
         }
 
@@ -217,6 +233,8 @@ void strategie(void *pvParameters){
         pami.clearInstructions();
         pami.nbStepsToDo = 0;
         pami.direction = STOP;
+
+        #ifdef MATCH
         double final_orientation;
         if (pami.zone.type == JARDINIERE){
           Serial.println("\n[Action de fin jardinière]");
@@ -271,6 +289,7 @@ void strategie(void *pvParameters){
             vTaskDelay(pdMS_TO_TICKS(5));
           }
         }
+        #endif
 
         Serial.println("\n========================================== END ==========================================");
         pami.printPos();  
@@ -280,28 +299,6 @@ void strategie(void *pvParameters){
     }
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
   }
-}
-
-void mouvement(void *pvParameters){
-  vTaskDelay(pdMS_TO_TICKS(10));
-  Serial.println("Début Mouvement");
-
-  pami.printPos();
-
-  #ifdef TEST_LINEAR 
-  pami.moveDist(FORWARDS, 430);
-  #endif
-  #ifdef TEST_ANGULAR
-  pami.steerRad(RIGHT, M_PI);
-  #endif
-
-  pami.sendNextInstruction();
-  pami.state = MOVING;
-  while (pami.isMoving()){
-    vTaskDelay(pdMS_TO_TICKS(5));
-  }
-  pami.printPos();
-  for(;;) vTaskDelay(pdMS_TO_TICKS(5));
 }
 
 void setup()
@@ -315,16 +312,8 @@ void setup()
   //xTaskCreatePinnedToCore(ReceptionUDP,"Reception Connexion",10000,NULL,configMAX_PRIORITIES,NULL,0);
 
   xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
-  #ifdef TEST_LINEAR
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
-  #endif
-  #ifdef TEST_ANGULAR
-  xTaskCreatePinnedToCore(mouvement, "Mouvement", 100000, NULL, tskIDLE_PRIORITY, NULL,0);
-  #endif
-  #ifdef MATCH
   xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL,0);
   xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES, NULL,1);
-  #endif
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("========================================= START =========================================");
