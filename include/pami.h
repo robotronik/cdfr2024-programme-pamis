@@ -18,12 +18,11 @@
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
 
+#define LEFT_DIR_PIN GPIO_NUM_26
+#define LEFT_STEP_PIN  GPIO_NUM_25
 
-#define LEFT_DIR_PIN GPIO_NUM_5 
-#define LEFT_STEP_PIN  GPIO_NUM_4
-
-#define RIGHT_DIR_PIN GPIO_NUM_14 
-#define RIGHT_STEP_PIN GPIO_NUM_13
+#define RIGHT_DIR_PIN GPIO_NUM_33 
+#define RIGHT_STEP_PIN GPIO_NUM_32
 
 #define DS1_PIN GPIO_NUM_15
 #define DS2_PIN GPIO_NUM_35
@@ -34,17 +33,21 @@
 //Caractéristiques du capteur ToF   
 #define SENSOR_FREQUENCY_HZ 60
 #define SENSOR_RES  VL53L7CX_RESOLUTION_4X4; // 4x4 resolution
+#define SENSOR_THRESHOLD  120 //M_PI * MAX_SPEED*MAX_SPEED/(STEPS_PER_REV*ACCELERATION) //mm
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_ROUES 62.6//Distance entres les points de contact des roues
+#define DISTANCE_ROUES 60.0//Distance entres les points de contact des roues (mm)
 #define DIAMETRE_ROUE 79.5773//mm
-#define THRESHOLD 30//mm
 
 //Caractéristiques moteurs
 #define STEPS_PER_REV 200
 #define MAX_SPEED 500 //steps/s
 #define ACCELERATION 500 //steps/s^2
 #define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
+
+//Constantes de différence mouvement effectué/mouvement indiqué
+#define DELTA_FORWARD 1
+#define DELTA_ROTATE 1
 
 //Caractéristiques connexion WiFi
 #define SSID "SuperRoutotronik"
@@ -137,10 +140,12 @@ class Pami{
         
         Zone zone;
 
-        uint16_t closestObstacle = UINT16_MAX;
+        bool obstacleDetected = false;
+
         State state;
         State nextState;
         Instruction listInstruction[NB_MAX_INSTRUCTIONS];
+        Instruction currentInstruction;
         int nbInstructions = 0;
 };
 

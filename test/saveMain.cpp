@@ -22,20 +22,21 @@ void gestionMoteur(void *pvParameters){
   for(;;){
     //Serial.println("Gestion moteur");
     xLastWakeTime = xTaskGetTickCount();
-    pami.moteur_gauche.run();
-    pami.moteur_droit.run();
 
-    if (pami.state == MOVING){
-      //Distance parcourue par les roues (mm, >0)
-      double distance_parcourue = (pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
-      double Dtheta = (pami.moteur_droit.currentPosition()-pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/((double)STEPS_PER_REV*DISTANCE_ROUES);
+    if (pami.state != BLOCKED)
+      pami.moteur_gauche.run();
+      pami.moteur_droit.run();
 
-      pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
-      pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
-    
-      pami.theta = normalizeAngle(pami.theta_last + Dtheta);
-    }
-    
+      if (pami.state == MOVING){
+        //Distance parcourue par les roues (mm, >0)
+        double distance_parcourue = (pami.moteur_droit.currentPosition()-pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
+        double Dtheta = (pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/((double)STEPS_PER_REV*DISTANCE_ROUES);
+
+        pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
+        pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
+      
+        pami.theta = normalizeAngle(pami.theta_last + Dtheta);
+      }
 
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
@@ -78,10 +79,10 @@ void gestionCapteur(void *pvParameters){
             }
           } 
         }
+        pami.closestObstacle = minValue;
       }
     }
     free(Results);  
-    pami.closestObstacle = minValue;
     //Delay according to sensor frequency
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(CONFIG_FREERTOS_HZ/SENSOR_FREQUENCY_HZ));
   }
@@ -115,7 +116,7 @@ void strategie(void *pvParameters){
         Serial.println("[STATE] START");
         pami.connectToWiFi();
         pami.UDPBeginAndSynchro(&udp);
-        pami.state=WAIT_INFO;
+        pami.nextState=WAIT_INFO;
         Serial.println();
 
       case WAIT_INFO:
@@ -140,7 +141,7 @@ void strategie(void *pvParameters){
                 Serial.println();
             }
             }
-          pami.state=WAIT_IDLE;
+          pami.nextState=WAIT_IDLE;
           }
         }
         break;
@@ -149,7 +150,7 @@ void strategie(void *pvParameters){
         Serial.printf(" Start time: %d, current time:%d \r",start_time,now);
         if(start_time<=now){
           Serial.println();
-          pami.state=IDLE;
+          pami.nextState=IDLE;
         }
         break;
         
@@ -159,18 +160,18 @@ void strategie(void *pvParameters){
       //if signal top départ
         if (!pami.inZone()){
           pami.moveDist(FORWARDS, 150);
-          pami.state = MOVING;
+          pami.nextState = MOVING;
         }
         break;
       #endif
       #ifdef TEST_LINEAR
-        pami.moveDist(FORWARDS, 430);
-        pami.state = MOVING;
+        pami.moveDist(FORWARDS, 1000);
+        pami.nextState = MOVING;
         break;
       #endif
       #ifdef TEST_ANGULAR
         pami.steerRad(RIGHT, M_PI);
-        pami.state = MOVING;
+        pami.nextState = MOVING;
         break;
       #endif
 
@@ -181,7 +182,7 @@ void strategie(void *pvParameters){
         if(!pami.inZone()){
           if(pami.nbInstructions > 0){
             pami.sendNextInstruction();
-            pami.state = MOVING;
+            pami.nextState = MOVING;
             Serial.println("\t[STATE] Moving");
           }
           else{
@@ -189,9 +190,9 @@ void strategie(void *pvParameters){
             digitalWrite(LED_BUILTIN, LOW);
             Serial.print("\n[STATE] Go for target: "); pami.printTarget();
             pami.goToPos(pami.zone.x_center, pami.zone.y_center);
-            pami.state = STOPPED;
+            pami.nextState = STOPPED;
             #else 
-            pami.state = END;
+            pami.nextState = END;
             #endif
           }
         }
@@ -201,22 +202,25 @@ void strategie(void *pvParameters){
           Serial.println("\n[STATE] Zone atteinte"); 
           pami.clearInstructions();
           pami.direction = STOP;
-          pami.state = END;
+          pami.nextState = END;
         }
       break;
 
       case BLOCKED:
         if(pami.closestObstacle > THRESHOLD){
           pami.goToPos(pami.zone.x_center, pami.zone.y_center);
-          pami.state = STOPPED;
+          pami.nextState = STOPPED;
+        }
+        else{
+          pami.nextState = BLOCKED;
         }
         break;
 
       //Pami en mouvement
       case MOVING:
         //Obstacle détecté
-        if (pami.closestObstacle <= THRESHOLD && (pami.direction == FORWARDS)){
-          pami.state = BLOCKED;
+        if (pami.closestObstacle <= THRESHOLD && pami.direction == FORWARDS){
+          pami.nextState = BLOCKED;
           digitalWrite(LED_BUILTIN, HIGH);
           Serial.print("\n[STATE] Obstacle detected at: "); pami.printPos();
           pami.clearInstructions();
@@ -225,11 +229,11 @@ void strategie(void *pvParameters){
           pami.moveDist(FORWARDS, 150);
           */
         }
-        if (!pami.motorsAreRunning()){
-          pami.state = STOPPED;
+        else if (!pami.motorsAreRunning()){
+          pami.nextState = STOPPED;
         }
         else{
-          pami.state = MOVING;
+          pami.nextState = MOVING;
         }
       break;
 
@@ -302,22 +306,23 @@ void strategie(void *pvParameters){
         break;
 
     }
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
+    pami.state = pami.nextState;
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(20));
   }
 }
 
 void setup()
 {
   Serial.begin(115200);
-
+  Serial.println("========================================= SETUP =========================================");
   pami.id = 1;
   pami.couleur = BLEU;
   pami.init();
 
 
-  xTaskCreatePinnedToCore(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL,0);
-  xTaskCreatePinnedToCore(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-2, NULL,0);
-  xTaskCreatePinnedToCore(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES-1, NULL,0);
+  xTaskCreate(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL);
+  xTaskCreate(strategie, "Stratégie", 100000, NULL, configMAX_PRIORITIES-2, NULL);
 
   digitalWrite(LED_BUILTIN, LOW);
   Serial.println("========================================= START =========================================");

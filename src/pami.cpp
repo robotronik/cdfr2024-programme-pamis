@@ -116,7 +116,7 @@ void Pami::init(){
             }
             break;
     }
-    Serial.println("Start coordinates: ");  this->printPos();
+    Serial.print(" - Start coordinates: ");  this->printPos();
     this->nbStepsToDo=0;
     this->direction=STOP;
     this->state = IDLE;
@@ -250,26 +250,32 @@ void Pami::sendNextInstruction(){
     if (this->nbInstructions >= 0){
         Instruction nextInstruction = this->listInstruction[0];
         this->direction = nextInstruction.dir;
+        long nbSteps; 
+
         switch(nextInstruction.dir){
 
             case BACKWARDS:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
-                this->moteur_droit.move(-nextInstruction.nbSteps);
+                nbSteps =  nextInstruction.nbSteps * DELTA_FORWARD;
+                this->moteur_gauche.move(-nbSteps);
+                this->moteur_droit.move(-nbSteps);
                 break;
 
             case FORWARDS:
-                this->moteur_gauche.move(+nextInstruction.nbSteps);
-                this->moteur_droit.move(+nextInstruction.nbSteps);
+                nbSteps =  nextInstruction.nbSteps * DELTA_FORWARD;
+                this->moteur_gauche.move(+nbSteps);
+                this->moteur_droit.move(+nbSteps);
                 break;
 
             case LEFT:
-                this->moteur_gauche.move(-nextInstruction.nbSteps);
-                this->moteur_droit.move(+nextInstruction.nbSteps);
+                nbSteps =  nextInstruction.nbSteps * DELTA_ROTATE;
+                this->moteur_gauche.move(+nbSteps);
+                this->moteur_droit.move(-nbSteps);
                 break;
             
             case RIGHT:
-                this->moteur_gauche.move(+nextInstruction.nbSteps);
-                this->moteur_droit.move(-nextInstruction.nbSteps);
+                nbSteps =  nextInstruction.nbSteps * DELTA_ROTATE;
+                this->moteur_gauche.move(-nbSteps);
+                this->moteur_droit.move(+nbSteps);
                 break;
             
             case STOP:
@@ -281,12 +287,12 @@ void Pami::sendNextInstruction(){
         for (int i=0; i<this->nbInstructions; i++){
             this->listInstruction[i] = this->listInstruction[i+1];
         }
-
         this->nbInstructions--;
         Serial.print("    |"); Serial.print("==> Executing instruction: ");
         Serial.print(nextInstruction.dir);
         Serial.print(" ");
         Serial.println(nextInstruction.nbSteps);
+        this->currentInstruction = nextInstruction;
     }
 }
 
