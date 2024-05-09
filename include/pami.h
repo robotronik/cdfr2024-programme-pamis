@@ -49,7 +49,7 @@
 //Caractéristiques connexion WiFi
 #define SSID "SuperRoutotronik"
 #define PASSWORD "J2MRNCKAWP"
-#define SERVERIP "raspitronik.local"
+#define SERVERIP "raspberrypi.local"
 #define LOCALPORT 9999
 #define SERVERPORT 8888
 #define GMTOFFSET 3600
