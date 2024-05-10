@@ -120,6 +120,7 @@ void strategie(void *pvParameters){
   //Connection variables
   unsigned long testID;
   time_t start_time;
+  time_t end_time;
   time_t now = 0;
   int packetSize;
   char packetBuffer[255];
@@ -145,6 +146,7 @@ void strategie(void *pvParameters){
         Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
         time(&now);
         start_time = now + 90; //addSecondsToTime(now, 90);
+        end_time = now + 100;
         Serial.println(start_time);
         Serial.println(now);
         
@@ -184,6 +186,7 @@ void strategie(void *pvParameters){
         if(start_time<=now){
           Serial.println();
           pami.nextState=IDLE;
+          digitalWrite(GPIO_NUM_4,0);
         }
         break;
         
@@ -209,7 +212,13 @@ void strategie(void *pvParameters){
       #endif
       #ifdef HOMOLOGATION
         pami.moveDist(FORWARDS, 150);
-        pami.steerRad(RIGHT, 2*M_PI/3);
+        if(pami.couleur==BLEU){
+          pami.steerRad(RIGHT, 2*M_PI/3);
+        }
+        else{
+          pami.steerRad(LEFT, 2*M_PI/3);
+        }
+        
         pami.moveDist(FORWARDS, 1000);
         pami.nextState = STOPPED;
         break;
@@ -250,7 +259,10 @@ void strategie(void *pvParameters){
       case BLOCKED: 
         pami.moteur_gauche.setSpeed(0);
         pami.moteur_droit.setSpeed(0);
-        if (!pami.obstacleDetected){
+        if(end_time<=now){
+          pami.nextState = END;
+        }
+        else if (!pami.obstacleDetected){
           pami.addInstruction(FORWARDS, pami.currentInstruction.nbSteps - abs(pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())/2);
           pami.nextState = STOPPED;
         }
@@ -262,7 +274,10 @@ void strategie(void *pvParameters){
       //Pami en mouvement
       case MOVING:
         //Obstacle détecté
-        if (pami.obstacleDetected && pami.direction == FORWARDS){
+        if(end_time<=now){
+          pami.nextState = END;
+        }
+        else if(pami.obstacleDetected && pami.direction == FORWARDS){
           #ifdef HOMOLOGATION
           pami.nextState = BLOCKED;
           Serial.print("\n[STATE] Obstacle detected at: "); pami.printPos();
@@ -288,6 +303,7 @@ void strategie(void *pvParameters){
         pami.nbStepsToDo = 0;
         pami.direction = STOP;
         pami.nextState = END;
+        digitalWrite(GPIO_NUM_4,1);
 
         #ifdef MATCH
         double final_orientation;

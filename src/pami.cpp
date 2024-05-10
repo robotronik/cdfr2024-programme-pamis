@@ -53,6 +53,8 @@ void Pami::init(){
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(GPIO_NUM_15, INPUT_PULLDOWN);
     pinMode(GPIO_NUM_5, INPUT_PULLUP);
+    pinMode(GPIO_NUM_4, OUTPUT);
+    digitalWrite(GPIO_NUM_4,1);
 
     // Initialize motors
     this->moteur_gauche.setAcceleration(ACCELERATION); 
