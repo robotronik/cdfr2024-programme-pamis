@@ -52,15 +52,20 @@ void gestionCapteur(void *pvParameters){
   uint8_t  res = SENSOR_RES;
   
   TickType_t xLastWakeTime;
-  double minValue = INT16_MAX;
+  uint16_t minValue = INT16_MAX;
+  double distanceLeftToGo; 
+  uint16_t threshold; 
 
   for(;;){
     xLastWakeTime = xTaskGetTickCount();
     VL53L7CX_ResultsData * Results = (VL53L7CX_ResultsData *)malloc(sizeof(VL53L7CX_ResultsData));
 
-    if (pami.state == MOVING || pami.state == BLOCKED){
+    if ((pami.state == MOVING || pami.state == BLOCKED) && pami.sensorIsActive){
 
       status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
+      distanceLeftToGo = (pami.moteur_gauche.distanceToGo() + pami.moteur_droit.distanceToGo())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
+      SENSOR_THRESHOLD > distanceLeftToGo ? threshold = distanceLeftToGo : threshold = SENSOR_THRESHOLD;
+
       //Attente de données du capteur
       if ((!status) && (NewDataReady != 0)) {
         minValue = INT16_MAX;
@@ -68,8 +73,8 @@ void gestionCapteur(void *pvParameters){
         status = pami.sensor.vl53l7cx_get_ranging_data(Results);
     
         //Calul distance minimum
-        //On ne regarde que la partie "basse" (partie supérieure une fois monté sur le PAMI) de la matrice de mesure
-        for (i=0; i<res/2 - 1; i++){              
+        //On ne regarde que la ligne de "haut" matrice de mesure
+        for (i=11; i>7; i--){              
           //On prend en compte uniquement les zones où le mesure est valide (status = 5 ou 9)
           uint8_t zoneStatus = Results->target_status[VL53L7CX_NB_TARGET_PER_ZONE * i];
           if (zoneStatus == 5 || zoneStatus == 9){
@@ -145,8 +150,8 @@ void strategie(void *pvParameters){
         }
         Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
         time(&now);
-        start_time = now + 90; //addSecondsToTime(now, 90);
-        end_time = now + 100;
+        start_time = now + 10; //addSecondsToTime(now, 90);
+        end_time = now + 20;
         Serial.println(start_time);
         Serial.println(now);
         
@@ -192,6 +197,7 @@ void strategie(void *pvParameters){
         
       case IDLE:
         Serial.println("\n[STATE] Idle");
+        pami.sensorIsActive = true;
       #ifdef MATCH
       //if signal top départ
         if (!pami.inZone()){
@@ -211,16 +217,36 @@ void strategie(void *pvParameters){
         break;
       #endif
       #ifdef HOMOLOGATION
-        pami.moveDist(FORWARDS, 150);
-        if(pami.couleur==BLEU){
-          pami.steerRad(RIGHT, 2*M_PI/3);
+        if(pami.id==1){
+          pami.moveDist(FORWARDS, 537);
+          if(pami.couleur==BLEU){
+            pami.steerRad(RIGHT, M_PI/2);
+          }
+          else{
+            pami.steerRad(LEFT, M_PI/2);
+          }
+          
+          pami.moveDist(FORWARDS, 1050);
+          pami.moveDist(FORWARDS, 150); //Moving without sensor 
+          pami.nextState = STOPPED;
         }
-        else{
-          pami.steerRad(LEFT, 2*M_PI/3);
+        else if(pami.id==2){
+          pami.moveDist(FORWARDS, 150);
+          if(pami.couleur==BLEU){
+            pami.steerRad(RIGHT, M_PI/2);
+            pami.moveDist(FORWARDS, 385);
+            pami.steerRad(RIGHT, M_PI/2);
+          }
+          else{
+            pami.steerRad(LEFT, M_PI/2);
+            pami.moveDist(FORWARDS, 385);
+            pami.steerRad(LEFT, M_PI/2);
+          }
+          
+          pami.moveDist(FORWARDS, 150); ///Moving without sensor
+          pami.nextState = STOPPED;
         }
         
-        pami.moveDist(FORWARDS, 1000);
-        pami.nextState = STOPPED;
         break;
       #endif
 
@@ -230,6 +256,7 @@ void strategie(void *pvParameters){
         //Zone non atteinte
         if(!pami.inZone()){
           if(pami.nbInstructions > 0){
+            if (pami.nbInstructions == 1) pami.sensorIsActive = false;
             pami.sendNextInstruction();
             pami.nextState = MOVING;
 
