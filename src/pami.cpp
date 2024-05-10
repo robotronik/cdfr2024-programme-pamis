@@ -51,6 +51,8 @@ void Pami::init(){
     Serial.println("VL53L7CX starting measures.");
 
     pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(GPIO_NUM_15, INPUT_PULLDOWN);
+    pinMode(GPIO_NUM_5, INPUT_PULLUP);
 
     // Initialize motors
     this->moteur_gauche.setAcceleration(ACCELERATION); 
@@ -119,7 +121,7 @@ void Pami::init(){
     Serial.print(" - Start coordinates: ");  this->printPos();
     this->nbStepsToDo=0;
     this->direction=STOP;
-    this->state = IDLE;
+    this->state = START;
     Serial.println("Setup done.");  
 }
 

@@ -104,6 +104,15 @@ void gestionShutdown(void *pvParameters){
   }
 }
 
+time_t addSecondsToTime(time_t timeToAdd, int secondsToAdd) {
+    struct tm timeStruct = *localtime(&timeToAdd); // Convertit time_t en struct tm
+
+    timeStruct.tm_sec += secondsToAdd; // Ajoute les secondes
+    mktime(&timeStruct); // Normalise la structure tm
+
+    return mktime(&timeStruct); // Convertit la structure tm en time_t
+}
+
 void strategie(void *pvParameters){
   //Task parameters
   vTaskDelay(pdMS_TO_TICKS(5));
@@ -111,7 +120,7 @@ void strategie(void *pvParameters){
   //Connection variables
   unsigned long testID;
   time_t start_time;
-  time_t now;
+  time_t now = 0;
   int packetSize;
   char packetBuffer[255];
   for(;;){
@@ -121,36 +130,53 @@ void strategie(void *pvParameters){
 
       case START:
         Serial.println("[STATE] START");
-        pami.connectToWiFi();
-        pami.UDPBeginAndSynchro(&udp);
-        pami.nextState=WAIT_INFO;
+        //pami.connectToWiFi();
+        //pami.UDPBeginAndSynchro(&udp);
+        while (!digitalRead(GPIO_NUM_5)){
+          vTaskDelay(pdMS_TO_TICKS(1));
+        }
+
+        if(digitalRead(GPIO_NUM_15)){
+          pami.couleur = BLEU;
+        }
+        else{
+          pami.couleur = JAUNE;
+        }
+        Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
+        time(&now);
+        start_time = now + 90; //addSecondsToTime(now, 90);
+        Serial.println(start_time);
+        Serial.println(now);
+        
+        pami.nextState = WAIT_IDLE;
         Serial.println();
+      break;
 
       case WAIT_INFO:
         //Serial.printf("Pami.state=WAIT_INFO \r");
-        pami.SendUDPPacket(&udp);
-        packetSize = udp.parsePacket();
-        if(packetSize){
-          if(pami.ReadPacket(&udp,packetBuffer)!=1){
-            break;
-          }
-          else{
-            const char delim = ':';
-            char * token =strtok(packetBuffer,&delim);
-            token[10]='\0';
-            if (token != NULL) {
-            start_time = (time_t)atoi(token);
-            token =strtok(NULL,&delim); // Get the next token
-            if (token != NULL) {
-                char item=token[0];
-                pami.couleur=(Couleur)atoi(&item);
-                Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
-                Serial.println();
-            }
-            }
-          pami.nextState=WAIT_IDLE;
-          }
-        }
+        // pami.SendUDPPacket(&udp);
+        // packetSize = udp.parsePacket();
+        // if(packetSize){
+        //   if(pami.ReadPacket(&udp,packetBuffer)!=1){
+        //     break;
+        //   }
+        //   else{
+        //     const char delim = ':';
+        //     char * token =strtok(packetBuffer,&delim);
+        //     token[10]='\0';
+        //     if (token != NULL) {
+        //     start_time = (time_t)atoi(token);
+        //     token =strtok(NULL,&delim); // Get the next token
+        //     if (token != NULL) {
+        //         char item=token[0];
+        //         pami.couleur=(Couleur)atoi(&item);
+        //         Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
+        //         Serial.println();
+        //     }
+        //     }
+        //   pami.nextState=WAIT_IDLE;
+        //   }
+        // }
         break;
 
       case WAIT_IDLE:
