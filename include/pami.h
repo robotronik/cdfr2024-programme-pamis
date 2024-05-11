@@ -36,7 +36,7 @@
 //Caractéristiques du capteur ToF   
 #define SENSOR_FREQUENCY_HZ 60
 #define SENSOR_RES  VL53L7CX_RESOLUTION_4X4; // 4x4 resolution
-#define SENSOR_THRESHOLD  140 //M_PI * MAX_SPEED*MAX_SPEED/(STEPS_PER_REV*ACCELERATION) //mm
+#define SENSOR_THRESHOLD  100 //M_PI * MAX_SPEED*MAX_SPEED/(STEPS_PER_REV*ACCELERATION) //mm
 
 //Caractéristiques géométriques du PAMI
 #define DISTANCE_ROUES 76.68//Distance entres les points de contact des roues (mm)
@@ -44,13 +44,13 @@
 
 //Caractéristiques moteurs
 #define STEPS_PER_REV 200
-#define MAX_SPEED 500 //steps/s
+#define MAX_SPEED 300 //steps/s
 #define ACCELERATION 500 //steps/s^2
 #define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
 
 //Constantes de différence mouvement effectué/mouvement indiqué
 #define DELTA_FORWARD 1
-#define DELTA_ROTATE 1.2
+#define DELTA_ROTATE 1
 
 //Caractéristiques connexion WiFi
 #define SSID "SuperRoutotronik"
@@ -91,7 +91,6 @@ class Pami{
 
         //Capteur ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
-        bool sensorIsActive;
         
         //Déplacement
         void moveDist(Direction dir, double distance_mm);
@@ -125,6 +124,7 @@ class Pami{
 
 
         VL53L7CX sensor;
+        bool sensorIsActive;
 
         Direction direction = FORWARDS;
 

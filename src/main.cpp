@@ -15,7 +15,6 @@ Pami pami;
 WiFiUDP udp;
 
 
-
 void gestionMoteur(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(10));
 
@@ -25,7 +24,7 @@ void gestionMoteur(void *pvParameters){
     //Serial.println("Gestion moteur");
     xLastWakeTime = xTaskGetTickCount();
 
-    if (pami.state != BLOCKED)
+    if (pami.state != BLOCKED){
       pami.moteur_gauche.run();
       pami.moteur_droit.run();
 
@@ -39,6 +38,7 @@ void gestionMoteur(void *pvParameters){
       
         pami.theta = normalizeAngle(pami.theta_last + Dtheta);
       }
+    }
 
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1));
   }
@@ -182,7 +182,7 @@ void strategie(void *pvParameters){
       #ifdef EVITEMENT_PASSIF
         switch (pami.id){
           case 1:
-            pami.moveDist(FORWARDS, 460);
+            pami.moveDist(FORWARDS, 500);
             break;
           case 2:
             pami.moveDist(FORWARDS, 190);
@@ -203,14 +203,14 @@ void strategie(void *pvParameters){
 
         switch (pami.id){
           case 1:
-            pami.moveDist(FORWARDS, 900);
-            pami.moveDist(FORWARDS, 200);
+            pami.moveDist(FORWARDS, 1000 -(SENSOR_THRESHOLD + 20));
+            pami.moveDist(FORWARDS, SENSOR_THRESHOLD + 20);
             break;
-          case 2:
+          case 3:
             pami.moveDist(FORWARDS, 1020);
             pami.moveDist(FORWARDS, 10);
             break;
-          case 3:
+          case 2:
             pami.moveDist(FORWARDS, 660);
             switch(pami.couleur){
               case JAUNE:
@@ -220,8 +220,7 @@ void strategie(void *pvParameters){
                 pami.steerRad(RIGHT, M_PI/2);
                 break;
             }
-            pami.moveDist(FORWARDS, 370-(SENSOR_THRESHOLD+10));
-            pami.moveDist(FORWARDS, SENSOR_THRESHOLD+10);
+            pami.moveDist(FORWARDS, 250);
           break;
         }
 
@@ -235,7 +234,7 @@ void strategie(void *pvParameters){
         pami.direction = STOP;
         Serial.print("    |--:"); pami.printPos();
         //Zone non atteinte
-        if(!pami.inZone()){
+        //if(!pami.inZone()){
           if(pami.nbInstructions > 0){
             if (pami.nbInstructions == 1) pami.sensorIsActive = false;
             pami.sendNextInstruction();
@@ -253,8 +252,9 @@ void strategie(void *pvParameters){
             pami.nextState = END;
             #endif
           }
-        }
+        //}
 
+        /*
         //Zone atteinte
         else if (pami.inZone()) {
           Serial.println("\n[STATE] Zone atteinte"); 
@@ -262,6 +262,7 @@ void strategie(void *pvParameters){
           pami.direction = STOP;
           pami.nextState = END;
         }
+        */
       break;
 
       case BLOCKED: 
@@ -270,10 +271,16 @@ void strategie(void *pvParameters){
         if(end_time<=now){
           pami.nextState = END;
         }
+        #ifdef EVITEMENT_PASSIF 
         else if (!pami.obstacleDetected){
-          pami.addInstruction(FORWARDS, pami.currentInstruction.nbSteps - abs(pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())/2);
+          for (int i=0; i<NB_MAX_INSTRUCTIONS-1; i++){
+            pami.listInstruction[i+1] = pami.listInstruction[i];
+          }
+          pami.listInstruction[0].dir = pami.currentInstruction.dir;
+          pami.listInstruction[0].nbSteps  = pami.currentInstruction.nbSteps- abs(pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())/2;
           pami.nextState = STOPPED;
         }
+        #endif	
         else{
           pami.nextState = BLOCKED;
         }
