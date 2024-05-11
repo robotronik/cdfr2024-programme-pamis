@@ -1,5 +1,5 @@
 #define EVITEMENT_PASSIF
-#define MATCH
+#define TEST_STRAT
 #define DELAY_BEOFRE_GO 90
 
 //Type de programme

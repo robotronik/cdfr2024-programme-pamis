@@ -118,8 +118,10 @@ void strategie(void *pvParameters){
   time_t start_time=0;
   time_t end_time=0;
   time_t now = 0;
-  int packetSize;
-  char packetBuffer[255];
+  
+  Instruction* savedInstructions = (Instruction*)malloc(NB_MAX_INSTRUCTIONS*sizeof(Instruction));
+  int nbInstructionsSaved = 0;
+
   for(;;){
     time(&now);
     xLastWakeTime = xTaskGetTickCount();
@@ -273,11 +275,22 @@ void strategie(void *pvParameters){
         }
         #ifdef EVITEMENT_PASSIF 
         else if (!pami.obstacleDetected){
-          for (int i=0; i<NB_MAX_INSTRUCTIONS-1; i++){
-            pami.listInstruction[i+1] = pami.listInstruction[i];
+
+          Serial.println("\n[STATE] Obstacle cleared");
+
+          //First finish the instruction that was interrupted
+          pami.clearInstructions();
+          Serial.println("    |>>>Finishing instruction<<<");
+          Direction dir = pami.currentInstruction.dir;
+          long stepsLeftToDo = pami.currentInstruction.nbSteps- abs(pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())/2;
+          pami.addInstruction(dir, stepsLeftToDo);
+
+          Serial.println("    |>>>Restoring series of instructions <<<");
+          //Restore the series of instructions
+          for (int i=0; i<nbInstructionsSaved;i++){
+            pami.addInstruction(savedInstructions[i].dir, savedInstructions[i].nbSteps);
           }
-          pami.listInstruction[0].dir = pami.currentInstruction.dir;
-          pami.listInstruction[0].nbSteps  = pami.currentInstruction.nbSteps- abs(pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())/2;
+          
           pami.nextState = STOPPED;
         }
         #endif	
@@ -296,6 +309,7 @@ void strategie(void *pvParameters){
           #ifdef EVITEMENT_PASSIF
           pami.nextState = BLOCKED;
           Serial.print("\n[STATE] Obstacle detected at: "); pami.printPos();
+          nbInstructionsSaved = pami.saveInstructions(savedInstructions);
           #endif
           #ifdef EVITEMENT_ACTIF
           /*
@@ -378,6 +392,7 @@ void strategie(void *pvParameters){
 
         Serial.println("\n========================================== END ==========================================");
         pami.printPos();  
+        free(savedInstructions);
         for(;;){vTaskDelay(pdMS_TO_TICKS(5));}
         break;
 

@@ -99,9 +99,12 @@ class Pami{
         void goToPos(double x, double y);
         bool inZone();
         bool motorsAreRunning();
+
+        //Instruction
         void addInstruction(Direction dir, long nbSteps);
         void clearInstructions();
         void sendNextInstruction();
+        int saveInstructions(Instruction* dst);
 
         //WiFI
         void connectToWiFi();

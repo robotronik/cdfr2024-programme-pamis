@@ -127,6 +127,7 @@ void Pami::init(){
     this->direction=STOP;
     this->state = ENTRY_STATE;
     this->sensorIsActive = true;
+
     digitalWrite(nENABLE_PIN,LOW);
     Serial.println("Setup done");  
 }
@@ -240,7 +241,7 @@ void Pami::clearInstructions(){
         this->listInstruction[i].dir = STOP;
         this->listInstruction[i].nbSteps = 0;
     }
-    Serial.print("    |"); Serial.println("--> Instructions cleared <--");
+    Serial.print("    |"); Serial.println(">>>Instructions cleared<<<");
 }
 
 //Send next instructions to steppers via AccelStepper API
@@ -312,6 +313,17 @@ void Pami::sendNextInstruction(){
     }
 }
 
+//Save next instructions |/!\ Current instruction is not saved ! /!\|
+int Pami::saveInstructions(Instruction* dst){
+    int nbInstructionsSaved = 0;
+    if (this->nbInstructions == 0) return nbInstructionsSaved;
+    for (int i=0;i<this->nbInstructions; i++){
+        nbInstructionsSaved ++;
+        dst[i] = this->listInstruction[i];
+    }
+    Serial.printf("    |>>>Saved %d instructions<<<\n", nbInstructionsSaved);
+    return nbInstructionsSaved;
+}
 
 bool Pami::motorsAreRunning(){
     return (this->moteur_gauche.distanceToGo() != 0 || this->moteur_droit.distanceToGo() != 0);
