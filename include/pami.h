@@ -11,6 +11,7 @@
 #include <cmath>
 #include "zone.h"
 #include "AccelStepper.h"
+#include "define.h"
 
 //Pinout 
 
@@ -24,6 +25,8 @@
 #define RIGHT_DIR_PIN GPIO_NUM_33 
 #define RIGHT_STEP_PIN GPIO_NUM_32
 
+#define nENABLE_PIN GPIO_NUM_4
+
 #define DS1_PIN GPIO_NUM_15
 #define DS2_PIN GPIO_NUM_35
 #define DS3_PIN GPIO_NUM_34
@@ -36,18 +39,18 @@
 #define SENSOR_THRESHOLD  140 //M_PI * MAX_SPEED*MAX_SPEED/(STEPS_PER_REV*ACCELERATION) //mm
 
 //Caractéristiques géométriques du PAMI
-#define DISTANCE_ROUES 64.68//Distance entres les points de contact des roues (mm)
+#define DISTANCE_ROUES 76.68//Distance entres les points de contact des roues (mm)
 #define DIAMETRE_ROUE 79.5773//mm
 
 //Caractéristiques moteurs
 #define STEPS_PER_REV 200
-#define MAX_SPEED 200 //steps/s
+#define MAX_SPEED 500 //steps/s
 #define ACCELERATION 500 //steps/s^2
 #define MIN_STEP_TIME_INTERVAL 1000/MAX_SPEED //ms
 
 //Constantes de différence mouvement effectué/mouvement indiqué
 #define DELTA_FORWARD 1
-#define DELTA_ROTATE 1
+#define DELTA_ROTATE 1.2
 
 //Caractéristiques connexion WiFi
 #define SSID "SuperRoutotronik"
@@ -60,7 +63,7 @@
 
 //Types énumérés
 enum Direction {BACKWARDS, FORWARDS, LEFT, RIGHT, STOP};
-enum State {START,WAIT_INFO,WAIT_IDLE,IDLE, STOPPED, BLOCKED, MOVING, END};
+enum State {START,WAIT_IDLE,IDLE, STOPPED, BLOCKED, MOVING, END};
 enum Couleur {BLEU, JAUNE}; 
 
 //Commande moteurs
@@ -88,7 +91,7 @@ class Pami{
 
         //Capteur ToF
         void getSensorData(VL53L7CX_ResultsData *Results);
-        bool sensorIsActive = true;
+        bool sensorIsActive;
         
         //Déplacement
         void moveDist(Direction dir, double distance_mm);
@@ -124,8 +127,6 @@ class Pami{
         VL53L7CX sensor;
 
         Direction direction = FORWARDS;
-        int speed = 100;
-        int nbStepsToDo = 0;
 
         //Current position
         double x;

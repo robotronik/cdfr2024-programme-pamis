@@ -26,6 +26,19 @@ Zone zones_jaunes[6] = {
 };
 
 void Pami::init(){
+
+    //Indicate that the PAMI is booting
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    pinMode(DS1_PIN, INPUT_PULLDOWN);
+    pinMode(DS2_PIN, INPUT_PULLDOWN);
+    pinMode(DS3_PIN, INPUT_PULLDOWN);
+    pinMode(GPIO_NUM_5, INPUT_PULLUP);
+    pinMode(nENABLE_PIN, OUTPUT);
+    digitalWrite(nENABLE_PIN,HIGH);
+
+
     // Initialize I2C bus.
     Wire.begin();
 
@@ -50,12 +63,6 @@ void Pami::init(){
     this->sensor.vl53l7cx_start_ranging();
     Serial.println("VL53L7CX starting measures.");
 
-    pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(GPIO_NUM_15, INPUT_PULLDOWN);
-    pinMode(GPIO_NUM_5, INPUT_PULLUP);
-    pinMode(GPIO_NUM_4, OUTPUT);
-    digitalWrite(GPIO_NUM_4,1);
-
     // Initialize motors
     this->moteur_gauche.setAcceleration(ACCELERATION); 
     this->moteur_gauche.setMaxSpeed(MAX_SPEED);
@@ -67,11 +74,6 @@ void Pami::init(){
 
     Serial.println("Motors setup.");
 
-    //Read HW ID
-    /*this->id = digitalRead(DS1_PIN)
-            + digitalRead(DS2_PIN)*2
-            + digitalRead(DS3_PIN)*4;*/
-    Serial.print("PAMI - ID: "); Serial.print(this->id); 
     //Defining coordinates
     // Initially, all the pamis are on the same horizontal axis
     // and have the same orientation
@@ -120,11 +122,13 @@ void Pami::init(){
             }
             break;
     }
-    Serial.print(" - Start coordinates: ");  this->printPos();
-    this->nbStepsToDo=0;
+    Serial.print("Start coordinates: ");  this->printPos();
+    
     this->direction=STOP;
-    this->state = START;
-    Serial.println("Setup done.");  
+    this->state = IDLE;
+    this->sensorIsActive = true;
+    digitalWrite(nENABLE_PIN,LOW);
+    Serial.println("Setup done");  
 }
 
 void Pami::shutdown(){
@@ -250,8 +254,16 @@ void Pami::sendNextInstruction(){
     this->y_last = this->y;
     this->theta_last = this->theta;
 
-    //Convention de cablage: les 2 moteurs sont cablés dans le même sens
+    //Convention de cablage: les 2 moteurs sont cablés "fils noirs vers l'extérieur"
     if (this->nbInstructions >= 0){
+
+        //Deactivate sensor for last instruction
+        if (nbInstructions == 1){
+            this->sensorIsActive = false;
+            Serial.print("    |"); Serial.println("==> Deactivating sensor");
+        }
+        else this->sensorIsActive = true;
+
         Instruction nextInstruction = this->listInstruction[0];
         this->direction = nextInstruction.dir;
         long nbSteps; 

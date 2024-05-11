@@ -5,7 +5,9 @@
 #include "soc/rtc_wdt.h"
 #include "AccelStepper.h"
 
-#define HOMOLOGATION
+/*
+/!\ DEFINE WETHER THIS PROGRAM MUST RUN AS A TEST OR A MATCH AND WITH OR WITHOUT ACTIVE AVOIDANCE /!\
+*/
 
 // Components
 Pami pami;
@@ -63,8 +65,6 @@ void gestionCapteur(void *pvParameters){
     if ((pami.state == MOVING || pami.state == BLOCKED) && pami.sensorIsActive){
 
       status = pami.sensor.vl53l7cx_check_data_ready(&NewDataReady);
-      distanceLeftToGo = (pami.moteur_gauche.distanceToGo() + pami.moteur_droit.distanceToGo())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
-      SENSOR_THRESHOLD > distanceLeftToGo ? threshold = distanceLeftToGo : threshold = SENSOR_THRESHOLD;
 
       //Attente de données du capteur
       if ((!status) && (NewDataReady != 0)) {
@@ -100,15 +100,6 @@ void gestionCapteur(void *pvParameters){
   }
 }
 
-void gestionShutdown(void *pvParameters){
-  for(;;){
-    char * data = pami.readData(8);
-    if (data == "shutdown"){
-      pami.shutdown();
-    }
-  }
-}
-
 time_t addSecondsToTime(time_t timeToAdd, int secondsToAdd) {
     struct tm timeStruct = *localtime(&timeToAdd); // Convertit time_t en struct tm
 
@@ -124,8 +115,8 @@ void strategie(void *pvParameters){
   TickType_t xLastWakeTime;
   //Connection variables
   unsigned long testID;
-  time_t start_time;
-  time_t end_time;
+  time_t start_time=0;
+  time_t end_time=0;
   time_t now = 0;
   int packetSize;
   char packetBuffer[255];
@@ -136,69 +127,41 @@ void strategie(void *pvParameters){
 
       case START:
         Serial.println("[STATE] START");
-        //pami.connectToWiFi();
-        //pami.UDPBeginAndSynchro(&udp);
+
         while (!digitalRead(GPIO_NUM_5)){
           vTaskDelay(pdMS_TO_TICKS(1));
         }
 
-        if(digitalRead(GPIO_NUM_15)){
-          pami.couleur = BLEU;
-        }
-        else{
-          pami.couleur = JAUNE;
-        }
-        Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
         time(&now);
-        start_time = now + 10; //addSecondsToTime(now, 90);
-        end_time = now + 20;
-        Serial.println(start_time);
-        Serial.println(now);
+        start_time = now + 90; //addSecondsToTime(now, 90);
+        end_time = start_time + 10;
         
         pami.nextState = WAIT_IDLE;
         Serial.println();
       break;
 
-      case WAIT_INFO:
-        //Serial.printf("Pami.state=WAIT_INFO \r");
-        // pami.SendUDPPacket(&udp);
-        // packetSize = udp.parsePacket();
-        // if(packetSize){
-        //   if(pami.ReadPacket(&udp,packetBuffer)!=1){
-        //     break;
-        //   }
-        //   else{
-        //     const char delim = ':';
-        //     char * token =strtok(packetBuffer,&delim);
-        //     token[10]='\0';
-        //     if (token != NULL) {
-        //     start_time = (time_t)atoi(token);
-        //     token =strtok(NULL,&delim); // Get the next token
-        //     if (token != NULL) {
-        //         char item=token[0];
-        //         pami.couleur=(Couleur)atoi(&item);
-        //         Serial.printf("Le pami est de couleur : %s",pami.couleur?"Jaune":"Bleu");
-        //         Serial.println();
-        //     }
-        //     }
-        //   pami.nextState=WAIT_IDLE;
-        //   }
-        // }
-        break;
-
       case WAIT_IDLE:
-        Serial.printf(" Start time: %d, current time:%d \r",start_time,now);
+        Serial.printf("    |--Start time: %d, current time:%d \r",start_time,now);
         if(start_time<=now){
           Serial.println();
           pami.nextState=IDLE;
-          digitalWrite(GPIO_NUM_4,0);
+          digitalWrite(nENABLE_PIN, LOW);
         }
         break;
         
       case IDLE:
         Serial.println("\n[STATE] Idle");
-        pami.sensorIsActive = true;
-      #ifdef MATCH
+        if (end_time == 0){
+          time(&now);
+          end_time = now + 10;
+        }
+
+        digitalRead(DS1_PIN) ? pami.couleur = JAUNE : pami.couleur = BLEU;
+        pami.id = 1+digitalRead(DS2_PIN)+2*digitalRead(DS3_PIN);
+
+        Serial.printf("    |--PAMI: %s - %d\n",pami.couleur?"Jaune":"Bleu", pami.id);
+
+      #ifdef EVITEMENT_ACTIF
       //if signal top départ
         if (!pami.inZone()){
           pami.moveDist(FORWARDS, 150);
@@ -216,39 +179,57 @@ void strategie(void *pvParameters){
         pami.nextState = STOPPED;
         break;
       #endif
-      #ifdef HOMOLOGATION
-        if(pami.id==1){
-          pami.moveDist(FORWARDS, 537);
-          if(pami.couleur==BLEU){
-            pami.steerRad(RIGHT, M_PI/2);
-          }
-          else{
-            pami.steerRad(LEFT, M_PI/2);
-          }
-          
-          pami.moveDist(FORWARDS, 1050);
-          pami.moveDist(FORWARDS, 150); //Moving without sensor 
-          pami.nextState = STOPPED;
+      #ifdef EVITEMENT_PASSIF
+        switch (pami.id){
+          case 1:
+            pami.moveDist(FORWARDS, 460);
+            break;
+          case 2:
+            pami.moveDist(FORWARDS, 190);
+            break;
+          case 3:
+            pami.moveDist(FORWARDS, 190);
+          break;
         }
-        else if(pami.id==2){
-          pami.moveDist(FORWARDS, 150);
-          if(pami.couleur==BLEU){
-            pami.steerRad(RIGHT, M_PI/2);
-            pami.moveDist(FORWARDS, 385);
-            pami.steerRad(RIGHT, M_PI/2);
-          }
-          else{
+
+        switch (pami.couleur){
+          case JAUNE:
             pami.steerRad(LEFT, M_PI/2);
-            pami.moveDist(FORWARDS, 385);
-            pami.steerRad(LEFT, M_PI/2);
-          }
-          
-          pami.moveDist(FORWARDS, 150); ///Moving without sensor
-          pami.nextState = STOPPED;
+            break;
+          case BLEU:
+            pami.steerRad(RIGHT, M_PI/2);
+            break;
         }
-        
-        break;
+
+        switch (pami.id){
+          case 1:
+            pami.moveDist(FORWARDS, 900);
+            pami.moveDist(FORWARDS, 200);
+            break;
+          case 2:
+            pami.moveDist(FORWARDS, 1020);
+            pami.moveDist(FORWARDS, 10);
+            break;
+          case 3:
+            pami.moveDist(FORWARDS, 660);
+            switch(pami.couleur){
+              case JAUNE:
+                pami.steerRad(LEFT, M_PI/2);
+                break;
+              case BLEU:
+                pami.steerRad(RIGHT, M_PI/2);
+                break;
+            }
+            pami.moveDist(FORWARDS, 370-(SENSOR_THRESHOLD+10));
+            pami.moveDist(FORWARDS, SENSOR_THRESHOLD+10);
+          break;
+        }
+
       #endif
+
+      pami.nextState = STOPPED;
+      break;
+
 
       case STOPPED:
         pami.direction = STOP;
@@ -263,7 +244,7 @@ void strategie(void *pvParameters){
             Serial.println("\t[STATE] Moving");
           }
           else{
-            #ifdef MATCH
+            #ifdef EVITEMENT_ACTIF
             digitalWrite(LED_BUILTIN, LOW);
             Serial.print("\n[STATE] Go for target: "); pami.printTarget();
             pami.goToPos(pami.zone.x_center, pami.zone.y_center);
@@ -305,11 +286,11 @@ void strategie(void *pvParameters){
           pami.nextState = END;
         }
         else if(pami.obstacleDetected && pami.direction == FORWARDS){
-          #ifdef HOMOLOGATION
+          #ifdef EVITEMENT_PASSIF
           pami.nextState = BLOCKED;
           Serial.print("\n[STATE] Obstacle detected at: "); pami.printPos();
           #endif
-          #ifdef MATCH
+          #ifdef EVITEMENT_ACTIF
           /*
           pami.steerRad(LEFT, M_PI/2); 
           pami.moveDist(FORWARDS, 150);
@@ -327,12 +308,11 @@ void strategie(void *pvParameters){
       case END:
         Serial.println("\n[STATE] End");
         pami.clearInstructions();
-        pami.nbStepsToDo = 0;
         pami.direction = STOP;
         pami.nextState = END;
-        digitalWrite(GPIO_NUM_4,1);
+        digitalWrite(nENABLE_PIN, HIGH);
 
-        #ifdef MATCH
+        #ifdef EVITEMENT_ACTIF
         double final_orientation;
         if (pami.zone.type == JARDINIERE){
           Serial.println("\n[Action de fin jardinière]");
@@ -404,11 +384,7 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("========================================= SETUP =========================================");
-  pami.id = 1;
-  pami.couleur = BLEU;
   pami.init();
-
-  Serial.println(SENSOR_THRESHOLD);
 
   xTaskCreate(gestionMoteur, "Gestion Moteur", 10000, NULL, configMAX_PRIORITIES, NULL);
   xTaskCreate(gestionCapteur, "Gestion Capteur", 10000, NULL, configMAX_PRIORITIES-1, NULL);
