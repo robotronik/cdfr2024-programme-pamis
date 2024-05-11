@@ -50,7 +50,7 @@
 
 //Constantes de différence mouvement effectué/mouvement indiqué
 #define DELTA_FORWARD 1
-#define DELTA_ROTATE 1
+#define DELTA_ROTATE 1.1
 
 //Caractéristiques connexion WiFi
 #define SSID "SuperRoutotronik"

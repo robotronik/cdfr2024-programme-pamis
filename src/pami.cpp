@@ -125,7 +125,7 @@ void Pami::init(){
     Serial.print("Start coordinates: ");  this->printPos();
     
     this->direction=STOP;
-    this->state = IDLE;
+    this->state = ENTRY_STATE;
     this->sensorIsActive = true;
     digitalWrite(nENABLE_PIN,LOW);
     Serial.println("Setup done");  

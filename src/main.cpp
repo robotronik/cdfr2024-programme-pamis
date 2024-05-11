@@ -133,7 +133,7 @@ void strategie(void *pvParameters){
         }
 
         time(&now);
-        start_time = now + 90; //addSecondsToTime(now, 90);
+        start_time = now + DELAY_BEOFRE_GO; //addSecondsToTime(now, 90);
         end_time = start_time + 10;
         
         pami.nextState = WAIT_IDLE;
@@ -182,10 +182,10 @@ void strategie(void *pvParameters){
       #ifdef EVITEMENT_PASSIF
         switch (pami.id){
           case 1:
-            pami.moveDist(FORWARDS, 500);
+            pami.moveDist(FORWARDS, 520);
             break;
           case 2:
-            pami.moveDist(FORWARDS, 190);
+            pami.moveDist(FORWARDS, 250);
             break;
           case 3:
             pami.moveDist(FORWARDS, 190);
@@ -220,7 +220,7 @@ void strategie(void *pvParameters){
                 pami.steerRad(RIGHT, M_PI/2);
                 break;
             }
-            pami.moveDist(FORWARDS, 250);
+            pami.moveDist(FORWARDS, 300);
           break;
         }
 
