@@ -31,7 +31,7 @@ void gestionMoteur(void *pvParameters){
       if (pami.state == MOVING){
         //Distance parcourue par les roues (mm, >0)
         double distance_parcourue = (pami.moteur_droit.currentPosition()+pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/(2*(double)STEPS_PER_REV);
-        double Dtheta = (pami.moteur_gauche.currentPosition()-pami.moteur_droit.currentPosition())*DIAMETRE_ROUE*M_PI/((double)STEPS_PER_REV*DISTANCE_ROUES);
+        double Dtheta = (pami.moteur_droit.currentPosition()-pami.moteur_gauche.currentPosition())*DIAMETRE_ROUE*M_PI/((double)STEPS_PER_REV*DISTANCE_ROUES);
 
         pami.x = pami.x_last + cos(pami.theta_last)*distance_parcourue;
         pami.y = pami.y_last + sin(pami.theta_last)*distance_parcourue;
@@ -190,30 +190,29 @@ void strategie(void *pvParameters){
             pami.moveDist(FORWARDS, 250);
             break;
           case 3:
-            pami.moveDist(FORWARDS, 190);
+            pami.moveDist(FORWARDS, 1050);
+            pami.moveDist(FORWARDS, 100);
           break;
         }
 
-        switch (pami.couleur){
-          case JAUNE:
-            pami.steerRad(LEFT, M_PI/2);
+        if (pami.id!=3){
+          switch (pami.couleur){
+            case JAUNE:
+              pami.steerRad(LEFT, M_PI/2);
             break;
-          case BLEU:
-            pami.steerRad(RIGHT, M_PI/2);
+            case BLEU:
+              pami.steerRad(RIGHT, M_PI/2);
             break;
+          }
         }
 
         switch (pami.id){
           case 1:
-            pami.moveDist(FORWARDS, 1000 -(SENSOR_THRESHOLD + 20));
-            pami.moveDist(FORWARDS, SENSOR_THRESHOLD + 20);
-            break;
-          case 3:
-            pami.moveDist(FORWARDS, 1020);
-            pami.moveDist(FORWARDS, 10);
+            pami.moveDist(FORWARDS, 1130);
+            pami.moveDist(FORWARDS,  120);
             break;
           case 2:
-            pami.moveDist(FORWARDS, 660);
+            pami.moveDist(FORWARDS, 810);
             switch(pami.couleur){
               case JAUNE:
                 pami.steerRad(LEFT, M_PI/2);
