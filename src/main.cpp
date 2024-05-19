@@ -11,9 +11,6 @@
 
 // Components
 Pami pami;
-// Objects & Variables
-WiFiUDP udp;
-
 
 void gestionMoteur(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(10));
@@ -84,6 +81,8 @@ void gestionCapteur(void *pvParameters){
             }
           } 
         }
+
+        //Si la distance minimale est inférieure à la distance seuil, on active le flag obstacleDetected et on allume la LED
         if (minValue <= SENSOR_THRESHOLD){
           digitalWrite(LED_BUILTIN, HIGH);
           pami.obstacleDetected = true;
@@ -95,18 +94,9 @@ void gestionCapteur(void *pvParameters){
       }
     }
     free(Results);  
-    //Delay according to sensor frequency
+    //Delai constant
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
   }
-}
-
-time_t addSecondsToTime(time_t timeToAdd, int secondsToAdd) {
-    struct tm timeStruct = *localtime(&timeToAdd); // Convertit time_t en struct tm
-
-    timeStruct.tm_sec += secondsToAdd; // Ajoute les secondes
-    mktime(&timeStruct); // Normalise la structure tm
-
-    return mktime(&timeStruct); // Convertit la structure tm en time_t
 }
 
 void strategie(void *pvParameters){
@@ -114,7 +104,6 @@ void strategie(void *pvParameters){
   vTaskDelay(pdMS_TO_TICKS(5));
   TickType_t xLastWakeTime;
   //Connection variables
-  unsigned long testID;
   time_t start_time=0;
   time_t end_time=0;
   time_t now = 0;
@@ -135,7 +124,7 @@ void strategie(void *pvParameters){
         }
 
         time(&now);
-        start_time = now + DELAY_BEOFRE_GO; //addSecondsToTime(now, 90);
+        start_time = now + DELAY_BEOFRE_GO;
         end_time = start_time + 10;
         
         pami.nextState = WAIT_IDLE;
@@ -234,28 +223,24 @@ void strategie(void *pvParameters){
       case STOPPED:
         pami.direction = STOP;
         Serial.print("    |--:"); pami.printPos();
+
+        #ifdef EVITEMENT_ACTIF
         //Zone non atteinte
-        //if(!pami.inZone()){
+        if(!pami.inZone()){
           if(pami.nbInstructions > 0){
-            if (pami.nbInstructions == 1) pami.sensorIsActive = false;
             pami.sendNextInstruction();
             pami.nextState = MOVING;
 
             Serial.println("\t[STATE] Moving");
           }
           else{
-            #ifdef EVITEMENT_ACTIF
             digitalWrite(LED_BUILTIN, LOW);
             Serial.print("\n[STATE] Go for target: "); pami.printTarget();
             pami.goToPos(pami.zone.x_center, pami.zone.y_center);
             pami.nextState = STOPPED;
-            #else 
             pami.nextState = END;
-            #endif
           }
-        //}
-
-        /*
+        }
         //Zone atteinte
         else if (pami.inZone()) {
           Serial.println("\n[STATE] Zone atteinte"); 
@@ -263,7 +248,17 @@ void strategie(void *pvParameters){
           pami.direction = STOP;
           pami.nextState = END;
         }
-        */
+      #endif
+      #ifdef EVITEMENT_PASSIF
+          if(pami.nbInstructions > 0){
+            if (pami.nbInstructions == 1) pami.sensorIsActive = false;
+            pami.sendNextInstruction();
+            pami.nextState = MOVING;
+
+            Serial.println("\t[STATE] Moving");
+          }
+      #endif
+
       break;
 
       case BLOCKED: 
@@ -311,10 +306,8 @@ void strategie(void *pvParameters){
           nbInstructionsSaved = pami.saveInstructions(savedInstructions);
           #endif
           #ifdef EVITEMENT_ACTIF
-          /*
           pami.steerRad(LEFT, M_PI/2); 
           pami.moveDist(FORWARDS, 150);
-          */
           #endif
         }
         else if (!pami.motorsAreRunning()){
@@ -335,6 +328,7 @@ void strategie(void *pvParameters){
         #ifdef EVITEMENT_ACTIF
         double final_orientation;
         if (pami.zone.type == JARDINIERE){
+          pami.sensorIsActive = false;
           Serial.println("\n[Action de fin jardinière]");
           switch(pami.couleur){
             case JAUNE:

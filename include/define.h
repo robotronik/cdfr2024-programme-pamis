@@ -1,3 +1,8 @@
+/*****************************************************************************************
+* Ce fichier contient les définitions des constantes qui contrôlent le programme principal
+* (main.cpp): type d'évitements, type de programme, état initial du programme, etc.
+*****************************************************************************************/
+
 #define EVITEMENT_PASSIF
 #define MATCH
 #define DELAY_BEOFRE_GO 90

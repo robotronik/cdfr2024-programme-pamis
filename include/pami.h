@@ -2,8 +2,6 @@
 #define PAMI_H
 #include <stdio.h>
 #include <stdlib.h>
-#include "stepper.h"
-#include "datmo.h"
 #include "vl53l7cx_class.h"
 #include <WiFi.h>
 #include "SPI.h"
@@ -13,8 +11,7 @@
 #include "AccelStepper.h"
 #include "define.h"
 
-//Pinout 
-
+//Pinout (ESP32 DevKit V1/Wroom32)
 #define LPN_PIN GPIO_NUM_26
 #define I2C_RST_PIN GPIO_NUM_25
 #define PWREN_PIN GPIO_NUM_27
@@ -106,7 +103,7 @@ class Pami{
         void sendNextInstruction();
         int saveInstructions(Instruction* dst);
 
-        //WiFI
+        //WiFI (not used)
         void connectToWiFi();
         void UDPBeginAndSynchro(WiFiUDP *udp);
         void SendUDPPacket(WiFiUDP *udp);
